@@ -1,0 +1,122 @@
+---
+title: "CI01 wind vs fish"
+author: "Annebelle Kok"
+date: "11 januari 2021"
+output: word_document
+---
+
+#Read in acoustic data and wind data
+```{r}
+setwd("G:/Shared drives/Soundscape_Analysis/SanctSound/Frontiers_Manuscript_2021/data_products/combineFiles")
+
+abiotic<-read.csv("CI01_FrontiersDataHR_2019-03-25_2019-04-24_v2021-01-08.csv")
+abiotic_ext<-read.csv("CI01_CombinedDataHR_2018-10-31_2019-10-08_v2021-01-08.csv")
+names(abiotic)
+summary(abiotic)
+
+require(chron)
+abiotic$time<-as.POSIXct(abiotic$DayHr,format=c("%Y-%m-%d %H:%M:%S"))
+abiotic_ext$time<-as.POSIXct(abiotic_ext$DayHr,format=c("%Y-%m-%d %H:%M:%S"))
+```
+
+OL = octave level
+avgWSPD = average wind speed
+sunAlt = sun altitude
+
+#Read in fish chorus data
+```{r}
+require(readxl)
+setwd("G:/Shared drives/Soundscape_Analysis/SanctSound/fish chorus/September deliverable/Plainfin midshipman/Data/CI/CI01")
+midship<-read_xls("SanctSound_CI01_02_midshipman.xls")
+names(midship)
+summary(midship)
+midship_par<-read.csv("SanctSound_CI01_02_midshipman_peakf_peakSPL.csv")
+midship_par2<-read.csv("SanctSound_CI01_02_midshipman_peakf_peakSPL_2.csv")
+midship_par<-rbind(midship_par,midship_par2)
+names(midship_par)
+summary(midship_par)
+
+midship_par$StartDate <- sapply(strsplit(as.character(midship_par$timevec), "T"), "[", 1)
+midship_par$StartTime <- sapply(strsplit(as.character(midship_par$timevec), "T"), "[", 2)
+midship_par$StartTime <- sapply(strsplit(as.character(midship_par$StartTime), "Z"), "[", 1)
+midship_par$Start<-chron(dates= midship_par$StartDate, times=midship_par$StartTime,format=c(dates = "y-m-d",times="h:m:s"))
+midship_par$TimeC<-as.POSIXct(midship_par$Start,format=c("%Y-%m-%d %H:%M:%S"))
+
+midship_par_sel<-subset(midship_par,midship_par$TimeC<abiotic_ext$time[721])
+midship_par_sel$SPLrmsC <- midship_par_sel$SPLrms+84.7
+```
+
+#Take over data from other script
+```{r}
+#CI01_peakfsub$TimeC<-as.POSIXct(CI01_peakfsub$Start,format=c("%Y-%m-%d %H:%M:%S"))
+#CI01_peakfsub_sel<-subset(CI01_peakfsub,CI01_peakfsub$TimeC<=abiotic$time[721]&CI01_peakfsub$TimeC>=abiotic$time[1])
+#CI01_peakfsub_sel$SPLrmsC<-CI01_peakfsub_sel$SPLrms+84.7
+
+dat<-midship_par
+result <- data.frame()
+## Convert times into POSIXct values
+range.time <- range(dat$Start, na.rm = T)
+## Times.start should be a vector holding the starting times for each bin to count within
+bins.size <- 1/24  # 1 hour bin
+times.start <- seq(from = range.time[1],
+                   to = range.time[2], by = bins.size)
+#times.start[1:(length(times.start) - 1)]
+i = 1
+for(i in 1:length(times.start)){
+  ## Define start and end times for this bin
+  time.start <- times.start[i]  
+  time.end <- time.start + bins.size
+  ## Show message
+  message("bin: ", i, ", time: ", time.start)
+  ## Subset data.frame: Select only rows within this time bin
+  sub <- subset(dat,
+                Start >= time.start &
+                  Start < time.end)
+  ## Calculate count results
+  temp.df <- data.frame(time.bin.start = time.start,
+                        peakF = median(sub$peakF),SPLpeakC =median(sub$SPL))
+  ## Append results to output data.frame
+  result <- rbind(result, temp.df)
+}
+
+result.na<-which(is.na(result$peakF))
+resultsub<-result[-result.na,]
+
+midship_hr<-result
+midship_hr$TimeC<-as.POSIXct(midship_hr$time.bin.start,format=c("%Y-%m-%d %H:%M:%S"))
+midship_hr$SPLpeakC<-midship_hr$SPLpeakC+84.7
+```
+
+
+Plot figures
+```{r}
+require(ggplot2)
+mytheme<-theme(panel.spacing=unit(2,"lines"),legend.position="none",axis.text.x = element_text(colour="black",size=14), 
+                 axis.text.y=element_text(size=14,colour="black"),axis.text.y.right=element_text(size=14,colour="#999900"),axis.title.x=element_text(size=16,colour="black"), 
+                 axis.title.y=element_text(size=16,colour="black"), axis.title.y.right=element_text(size=16,colour="#999900"),axis.line = element_line(colour="black",size=1),axis.line.y.right = element_line(colour="#999900",size=1), panel.background=element_rect(fill= "transparent",colour =NA),legend.background= element_rect(fill="transparent",colour=NA),axis.line.x = element_line(colour="black"),axis.line.y=element_line(colour="black"),plot.margin=unit(c(10,10,10,10),"mm"))
+
+#Midshipman chorus is present in early April, but not very well visible on LTSA, thus SPL measurements will be off.
+#Take out anything before April 15
+
+subtime<-as.POSIXct(c("2019-03-25 00:00:00","2019-06-01 00:00:00"),format=c("%Y-%m-%d %H:%M:%S"))
+midship_hr_sub<-subset(midship_hr,midship_hr$TimeC>=subtime)
+
+g<-ggplot(data=abiotic_ext,aes(x=time,y=OL_125))+geom_line(size=1)+
+  geom_line(data=midship_hr,aes(x=TimeC,y=SPLpeakC),colour="#999900",size=1)+
+  mytheme+
+  xlab("Date")+
+  scale_x_datetime(date_labels = "%d-%m",limits=subtime)+
+  scale_y_continuous(name =paste("Band Sound Pressure Level\ndB re 1 µPa (125 Hz)"), sec.axis = sec_axis(trans=~.*1,name = expression("Fish chorus PSD\ndB re 1 µPa/Hz"))) #
+
+  #geom_line(aes(x=time,y=OL_250),colour="red")
+a<-which(abiotic_ext$avgWSPD>15) #Take out unrealistic outliers.
+abiotic_ext_sub<-abiotic_ext[-a,]
+
+g1<-ggplot(data=abiotic_ext_sub,aes(x=time,y=avgWSPD))+geom_col(size=1,colour="#3366FF")+mytheme+xlab("Date")+scale_y_continuous(name=paste("Mean wind speed \nm/s"))+
+  scale_x_datetime(date_labels = "%d-%m",limits=subtime)
+
+g2<-ggplot(data=midship_hr_sub,aes(x=TimeC,y=SPLrmsC))+geom_point()
+
+require(cowplot)
+plot_grid(g,g1,align="v",ncol=1,rel_widths = c(1,0.8))
+```

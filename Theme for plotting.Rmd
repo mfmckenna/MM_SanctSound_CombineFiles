@@ -1,0 +1,18 @@
+---
+title: "Plotting theme Frontiers"
+author: "Annebelle Kok"
+date: "28 januari 2021"
+output: word_document
+---
+
+```{r}
+mytheme<-theme(panel.spacing=unit(2,"lines"),legend.position="right",axis.text.x = element_text(colour="black",size=14), 
+                 axis.text.y=element_text(size=14,colour="black"),axis.title.x=element_text(size=16,colour="black"), 
+                 axis.title.y=element_text(size=16,colour="black"), axis.line = element_line(colour="black",size=1), panel.background=element_rect(fill= "transparent",colour =NA),legend.background= element_rect(fill="transparent",colour=NA),axis.line.x = element_line(colour="black"),axis.line.y=element_line(colour="black"))
+```
+
+Note: legend position can be changed to 'none' if for the figure it doesn't make sense to have a legend.
+Also, within the ggplot function I use the following line to make the x-axis:
+```{r}
+scale_x_datetime(name="Date",date_labels = "%d-%m") #with the x-values as POSIXct values.
+```
