@@ -12,7 +12,8 @@ rm(list=ls())
 
 #outputs 
 # a per site .csv file: E:\RESEARCH\SanctSound\data2\combineFiles1_SPLShips
-# summary table for average of all data per site (copied here) :https://docs.google.com/spreadsheets/d/1dw9Vy0dXKW3Q6Ter3t19cmLf_5EJWbmL9nqJsCrNXQE/edit#gid=888829761
+# summary table for average of all data per site (copied here):
+# https://docs.google.com/spreadsheets/d/1dw9Vy0dXKW3Q6Ter3t19cmLf_5EJWbmL9nqJsCrNXQE/edit#gid=888829761
 
 #-----------------------------------------------------------------------------------------
 # TO ADD (future versions)

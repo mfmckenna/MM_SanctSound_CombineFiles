@@ -13,18 +13,20 @@ library(suncalc)
 #-----------------------------------------------------------------------------------------
 # MAIN functions-- by site processing
 #-----------------------------------------------------------------------------------------
-#INPUT a per site .csv file: E:\RESEARCH\SanctSound\data2\combineFiles1_SPLShips
-inDir =  "H:\\RESEARCH\\SanctSound\\data2\\combineFiles1_SPLShips"
-outDir = "H:\\RESEARCH\\SanctSound\\data2\\combineFiles2_Abiotic"
-#inDir = "E:\\RESEARCH\\SanctSound\\data2\\combineFileEffort_SplAisVesDet" #older directory)
+#INPUT a per site .csv file: 
+tDir = "E:\\RESEARCH\\SanctSound\\data2\\"
+inDir =  paste0(tDir,"combineFiles1_SPLShips")
+outDir = paste0(tDir,"combineFiles2_Abiotic")
+
 inDay = list.files(inDir,"_Day_",full.names = T)
 inHr  = list.files(inDir,"Hr_",full.names = T)
 
 #start a loop here!!!
-
-ifile = inHr[22]
+ii = 22
+cat("Processing...", basename( inHr[ii]) )
+ifile = inHr[ii]
 idataH = read.csv(ifile)
-ifile = inDay[22]
+ifile = inDay[ii]
 idataD = read.csv(ifile)
 
 #check date range
@@ -36,6 +38,8 @@ dcolD=as.data.frame(colnames(idataD))
 dcolD
 site = substr( idataH$Site[1],1,2) 
 
+cat("Processing...", site, ":", basename( inHr[ii]) )
+
 #format data
 SplAis = idataH
 head(SplAis)
@@ -45,19 +49,19 @@ head(SplAis)
 #-----------------------------------------------------------------------------------------
 #location
 #-----------------------------------------------------------------------------------------
-dirAb = "H:\\RESEARCH\\SanctSound\\data2\\abioticFiles\\"
-siteLoc = read.csv("H:\\RESEARCH\\SanctSound\\data2\\abioticFiles\\LocationSummary.csv")
+dirAb = paste0(tDir,"abioticFiles\\")
+siteLoc = read.csv(paste0(dirAb, "LocationSummary.csv"))
 sLoc    = siteLoc[as.character(siteLoc$Site) == as.character(idataH$Site[1]),]
 
 #tide
 #-----------------------------------------------------------------------------------------
 setwd(dirAb)
 multmerge = function(path){
-  filenames = intersect(list.files("H:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = site), 
-                        list.files("H:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = "^CO-OPS"))
+  filenames = intersect(list.files(dirAb,pattern = site), 
+                        list.files(dirAb,pattern = "^CO-OPS"))
   rbindlist(lapply(filenames, fread))
 }
-#filenames = intersect(list.files("H:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = site), list.files("E:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = "^CO-OPS"))
+#filenames = intersect(list.files(dirAb,pattern = site), list.files("E:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = "^CO-OPS"))
 TIDE <- multmerge(dirAb)
 TIDE$DateFday = as.Date(TIDE$Date ,format = "%Y/%m/%d")
 TIDE$DateF    = as.POSIXct( paste(TIDE$DateFday, paste(TIDE$`Time (GMT)`,":00", sep = ""), sep=" "), tz = "GMT")
@@ -73,8 +77,8 @@ pTide = ggplot(TIDE, aes(DateFday, as.numeric(as.character(changeWL)) ) )+
 #wind
 #-----------------------------------------------------------------------------------------
 multmerge = function(path){
-  filenames = intersect(list.files("H:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = site), 
-                        list.files("H:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = "MetA"))
+  filenames = intersect(list.files(dirAb,pattern = site), 
+                        list.files(dirAb,pattern = "MetA"))
   rbindlist(lapply(filenames, fread))
 }
 #filenames = intersect(list.files("E:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = site), list.files("E:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = "^CO-OPS"))
@@ -98,7 +102,7 @@ pWind = ggplot(WSPD, aes(DateF, WSPD ) )+
   xlab("")+
   ylab("Wind Speed (mps) ") +
   theme_minimal()+ggtitle(paste("Check- WIND (",site, ")"))
-#pWind
+# pWind
 
 WSPD$Day   = as.Date(WSPD$DateF, format = "%Y-%m-%d")
 WSPD$HR    = strftime(WSPD$DateF, format="%H") #hour(WSPD$DateF)
@@ -130,8 +134,9 @@ write.csv(SplAisWspdTide,fnameAll)
 dcol = as.data.frame(colnames(SplAisWspdTide))
 
 dcol
+
 #-----------------------------------------------------------------------------------------
-# DATA EXPLORATION-- SB02
+# EXTRA: DATA EXPLORATION-- SB02
 #-----------------------------------------------------------------------------------------
 #March 25-31 201 Vs 2020 julian day 83-90
 #WIND SPEED
@@ -146,3 +151,4 @@ ggplot(tmp, aes(as.factor(JulianDay), avgWSPD,fill=as.factor(Yr))) +
   ggtitle(("SB02: March 25-31 [2019=5.8, 2020=7.1]"))+
   theme_minimal()
 tmp %>% group_by(Yr) %>% summarize(newvar = mean(avgWSPD,na.rm = T))
+

@@ -13,7 +13,8 @@ library(gridExtra)
 #-----------------------------------------------------------------------------------------
 # READ IN DATA
 #-----------------------------------------------------------------------------------------
-inDir = "H:\\RESEARCH\\SanctSound\\data2\\combineFiles3_Detections"
+tDir  =  "E:\\RESEARCH\\SanctSound\\"
+inDir = paste0(tDir,"data2\\combineFiles3_Detections")
 sanct = "SB"
 site = "SB02"
 inHr  = list.files(inDir,sanct,full.names = T)
