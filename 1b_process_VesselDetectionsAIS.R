@@ -45,9 +45,10 @@ stdize = function(x, ...) {(x - min(x, ...)) / (max(x, ...) - min(x, ...))}
 #-----------------------------------------------------------------------------------------
 # OUTPUT details
 #-----------------------------------------------------------------------------------------
-outDir = "E:\\RESEARCH\\SanctSound\\data2\\combineFiles1_SPLShips\\"
-#        "E:\\RESEARCH\\SanctSound\\data2\\combineFiles1_SPLShips\\"
-#outDir ="E:\\RESEARCH\\SanctSound\\data2\\combineFileEffort_SplAisVesDet\\"
+tDir = "E:\\RESEARCH\\SanctSound\\"
+outDir =  paste0(tDir,"combineFiles1_SPLShips")
+
+
 DC = Sys.Date()
 
 #range of dates for output graphics
@@ -59,7 +60,7 @@ flagPLT = FALSE #true if you want to output summary plots of data
 #-----------------------------------------------------------------------------------------
 # READ IN-- vessel detection data
 #-----------------------------------------------------------------------------------------
-dirVD     = ("E:\\RESEARCH\\SanctSound\\data2\\SanctSound_VesselDetection_DataProducts") 
+dirVD     = (paste0(tDir,"data2\\SanctSound_VesselDetection_DataProducts") )
 nFilesVD  = length( list.files(path=dirVD, pattern = "*hips.csv", full.names=TRUE, recursive = TRUE))
 inFilesVD =     ( list.files(path=dirVD, pattern = "*hips.csv", full.names=TRUE, recursive = TRUE))
 inFilesVD = basename(inFilesVD)
@@ -72,7 +73,7 @@ rm(x)
 #-----------------------------------------------------------------------------------------
 # READS IN-- AIS data
 #-----------------------------------------------------------------------------------------
-dirAIS      = ("E:\\RESEARCH\\SanctSound\\data")
+dirAIS      = paste0(tDir,"data")
 nFilesAIS   = length( list.files(path=dirAIS,pattern = "_2018_10_to_2020_11.csv", full.names=TRUE, recursive = TRUE))
 inFilesAIS  =       ( list.files(path=dirAIS,pattern = "_2018_10_to_2020_11.csv", full.names=TRUE, recursive = TRUE))
 x = strsplit(inFilesAIS,"_")
@@ -93,7 +94,7 @@ rm(x)
 output = NULL
 output2 = NULL #truncate to a give time period
 
-for (ss in 20: length(sitesVD)) { #loop through each site ss = 25
+for (ss in 20: length(sitesVD)) { #loop through each site ss = 25 (SB02)
   
   cat("Processing site...", sitesVD[ss], ":",ss, "of", length(sitesVD),"\n")
   
@@ -106,7 +107,7 @@ for (ss in 20: length(sitesVD)) { #loop through each site ss = 25
   #----------------------------------------------------------------------------------------- 
   #GET SPL files-- this give us accurate date range for detections
   #---------------------------------------------------------------------------------------
-  dirSPL  = paste0("E:\\RESEARCH\\SanctSound\\data\\",sanct,"\\", deply)
+  dirSPL  = paste0(tDir,"data\\",sanct,"\\", deply)
   nFiles  = length( list.files(path=dirSPL, pattern = "_OL_1h.csv", full.names=TRUE, recursive = TRUE))
   
   #CHECK: are there OL SPL files??
@@ -253,7 +254,7 @@ for (ss in 20: length(sitesVD)) { #loop through each site ss = 25
   rm(dname, VESSday,VESSfor,SPL,dSPL,beginDay,beginTime,deply,endDay,endTime,gg,ii,ff,sanct)
   
   #----------------------------------------------------------------------------------------- 
-  #PROCESS VESSEL DETECTION DATA TO daily metircs-- COMBINE deployments
+  #PROCESS VESSEL DETECTION DATA TO daily metrics-- COMBINE deployments
   #-----------------------------------------------------------------------------------------
   VESS=NULL
   for (ff in 1:length(sFiles)){
@@ -270,7 +271,7 @@ for (ss in 20: length(sitesVD)) { #loop through each site ss = 25
   #-----------------------------------------------------------------------------------------
   VESS$DateFs   = as.POSIXct( gsub(".000Z", "", gsub("T", " ", VESS$V1)), tz = "GMT" )
   VESS$DateFe   = as.POSIXct( gsub(".000Z", "", gsub("T", " ", VESS$V2))  , tz = "GMT" )
-  VESS$Dur_mins = VESS$DateFe- VESS$DateFs #in minutes!
+  VESS$Dur_mins = VESS$DateFe  - VESS$DateFs #in minutes!
   VESS = VESS[,3:7]
   names(VESS)[1] = "label"
   names(VESS)[2] = "deply"
