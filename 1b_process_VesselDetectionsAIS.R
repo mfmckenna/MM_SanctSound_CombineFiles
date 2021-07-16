@@ -93,7 +93,7 @@ output = NULL
 output2 = NULL #truncate to a give time period
 output3 = NULL
 
-for (ss in 1:3 ) { #loop through each site length(sitesVD), ss = 25 (SB02) 
+for (ss in 1:length(sitesVD) ) { #loop through each site length(sitesVD), ss = 25 (SB02) 
   
   cat("Processing site...", sitesVD[ss], ":",ss, "of", length(sitesVD),"\n")
   
@@ -112,8 +112,9 @@ for (ss in 1:3 ) { #loop through each site length(sitesVD), ss = 25 (SB02)
   #CHECK: are there OL SPL files??
   if (nFiles == 0 ){
     cat("No SPL files for ", sitesVD[ss], "\n")
-    n
-    output = rbind(output, c(sitesVD[ss], length(sFiles), nFiles, NA, NA,NA,NA,NA, NA,NA,NA,NA, NA,NA,NA,NA, NA,NA,NA,NA, NA,NA,NA,NA, NA,NA,NA,NA,NA,NA ) )
+    #UPDATE FOR SITE WITH NO SPL DATA!!
+    output = rbind(output, c(sitesVD[ss], length(sFiles), nFiles, 
+                             NA, NA,NA,NA,NA, NA,NA,NA,NA, NA,NA,NA,NA, NA,NA,NA,NA, NA,NA,NA,NA, NA,NA,NA,NA,NA,NA ) )
     next
   }else { 
     cat(nFiles, "SPL files for ",sitesVD[ss],"\n") }
@@ -684,6 +685,8 @@ for (ss in 1:3 ) { #loop through each site length(sitesVD), ss = 25 (SB02)
   a11 = mean(as.numeric(as.character(cDatat$PerDayVess)),na.rm = T)   #average percent of day with vessel present
   a9  = mean(as.numeric(as.character(cDatat$sumTotalTime_sec)),na.rm = T) #average total time with vessels per day
   # a10 = mean(as.numeric(as.character(cDatat$sumTotalVessels)) ,na.rm = T) #no longer used so NA
+  a22  = mean(as.numeric(as.character(cDatat$meanQuietDur)),na.rm = T)/60
+  a23  = mean(as.numeric(as.character(cDatat$meanQuietPeriods)),na.rm = T)
   
   #median SPLs
   gg = c( as.numeric(grep("^OL", colnames(cDatat) ) ), 14)
@@ -719,15 +722,16 @@ for (ss in 1:3 ) { #loop through each site length(sitesVD), ss = 25 (SB02)
   
   #combine summaries for all data
   tmpOUT = t(as.data.frame( c(cDatat$Site[1], as.character(aDR), length(sFiles), nFiles, a0, a1,a2,a3,a4,a5,a6,a7,a8, a13,a14,a15,a16, 
-    a9,a11,a12, a20,a21, SPLm, SPLmVessY,SPLmVessN ) ))
+    a9,a11,a12, a20,a21, a22,a23, SPLm, SPLmVessY,SPLmVessN ) ))
 
-  
-  colnames(tmpOUT) = c("Site","Start Day","End Day",
+   colnames(tmpOUT) = c("Site","Start Day","End Day",
                        "shipFiles", "SPLfiles", "TotalDays",
                        "mAIS_S_UV",      "mAIS_M_UV",      "mAIS_L_UV",     "mAIS_A_UV",
                        "mAIS_S_OPHRS",   "mAIS_M_OPHRS",   "mAIS_L_OPHRS",  "mAIS_A_OPHRS",
                        "mAIS_S_PerOPHRS","mAIS_M_PerOPHRS","mAIS_L_PerOPHRS","mAIS_A_PerOPHRS",
-                       "mTotalTime","mPerDay","mTotalVesselsday","PercentDaysNo_VesselDet","PercentDaysYes_VesselDet",
+                       "mTotalTime","mPerDay","mTotalVesselsday",
+                       "PercentDaysNo_VesselDet","PercentDaysYes_VesselDet",
+                       "mQuietDur","mQuietPerids",
                        SPLnames,SPLnamesY,SPLnamesN)
 
   output = as.data.frame(output, stringsAsFactors = FALSE)
@@ -765,7 +769,9 @@ for (ss in 1:3 ) { #loop through each site length(sitesVD), ss = 25 (SB02)
   a11 = mean(as.numeric(as.character(cDatat$PerDayVess)),na.rm = T)
   a9  = mean(as.numeric(as.character(cDatat$sumTotalTime_sec)),na.rm = T)
   # a10 = mean(as.numeric(as.character(cDatat$sumTotalVessels)) ,na.rm = T) #no longer used so NA
-  
+  a22  = mean(as.numeric(as.character(cDatat$meanQuietDur)),na.rm = T)/60
+  a23  = mean(as.numeric(as.character(cDatat$meanQuietPeriods)),na.rm = T)
+   
   #median SPLs
   as.data.frame( colnames(cDatat) )
   gg = c( as.numeric(grep("^OL", colnames(cDatat) ) ), 14)
@@ -802,13 +808,15 @@ for (ss in 1:3 ) { #loop through each site length(sitesVD), ss = 25 (SB02)
   
 
   tmpOUT = t(as.data.frame( c(cDatat$Site[1], as.character(aDR), length(sFiles), nFiles, a0, a1,a2,a3,a4, a5,a6,a7,a8, a13,a14,a15,a16, 
-                              a9,a11,a12, (a20), (a21), SPLm, SPLmVessY, SPLmVessN  ) ) )
+                              a9,a11,a12, (a20), (a21),a22, a23, SPLm, SPLmVessY, SPLmVessN  ) ) )
   colnames(tmpOUT) = c("Site","Start Day","End Day",
                        "shipFiles", "SPLfiles", "TotalDays",
                        "mAIS_S_UV",      "mAIS_M_UV",      "mAIS_L_UV",     "mAIS_A_UV",
                        "mAIS_S_OPHRS",   "mAIS_M_OPHRS",   "mAIS_L_OPHRS",  "mAIS_A_OPHRS",
                        "mAIS_S_PerOPHRS","mAIS_M_PerOPHRS","mAIS_L_PerOPHRS","mAIS_A_PerOPHRS",
-                       "mTotalTime","mPerDay","mTotalVesselsday","PercentDaysNo_VesselDet","PercentDaysYes_VesselDet",
+                       "mTotalTime","mPerDay","mTotalVesselsday",
+                       "PercentDaysNo_VesselDet","PercentDaysYes_VesselDet",
+                       "mQuietDur","mQuietPerids",
                        SPLnames,SPLnamesY,SPLnamesN)
   output2 = as.data.frame(output2,stringsAsFactors = FALSE)
   output2 = rbind (output2, tmpOUT )
@@ -846,6 +854,8 @@ for (ss in 1:3 ) { #loop through each site length(sitesVD), ss = 25 (SB02)
     a11 = mean(as.numeric(as.character(cDatat$PerDayVess)),na.rm = T)
     a9  = mean(as.numeric(as.character(cDatat$sumTotalTime_sec)),na.rm = T)
     # a10 = mean(as.numeric(as.character(cDatat$sumTotalVessels)) ,na.rm = T) #no longer used so NA
+    a22  = mean(as.numeric(as.character(cDatat$meanQuietDur)),na.rm = T)/60
+    a23  = mean(as.numeric(as.character(cDatat$meanQuietPeriods)),na.rm = T)
     
     #median SPLs
     as.data.frame( colnames(cDatat) )
@@ -883,14 +893,16 @@ for (ss in 1:3 ) { #loop through each site length(sitesVD), ss = 25 (SB02)
     
     
     tmpOUT = t(as.data.frame( c(cDatat$Site[1], as.character(aDR), length(sFiles), nFiles, a0, a1,a2,a3,a4, a5,a6,a7,a8, a13,a14,a15,a16, 
-                                a9,a11,a12, (a20), (a21), SPLm, SPLmVessY, SPLmVessN  ) ) )
+                                a9,a11,a12, (a20), (a21), a22,a23, SPLm, SPLmVessY, SPLmVessN  ) ) )
     
     colnames(tmpOUT) = c("Site","Start Day","End Day",
                          "shipFiles", "SPLfiles", "TotalDays",
                          "mAIS_S_UV",      "mAIS_M_UV",      "mAIS_L_UV",     "mAIS_A_UV",
                          "mAIS_S_OPHRS",   "mAIS_M_OPHRS",   "mAIS_L_OPHRS",  "mAIS_A_OPHRS",
                          "mAIS_S_PerOPHRS","mAIS_M_PerOPHRS","mAIS_L_PerOPHRS","mAIS_A_PerOPHRS",
-                         "mTotalTime","mPerDay","mTotalVesselsday","PercentDaysNo_VesselDet","PercentDaysYes_VesselDet",
+                         "mTotalTime","mPerDay","mTotalVesselsday",
+                         "PercentDaysNo_VesselDet","PercentDaysYes_VesselDet",
+                         "mQuietDur","mQuietPerids",
                          SPLnames,SPLnamesY,SPLnamesN)
     output3 = as.data.frame(output3,stringsAsFactors = FALSE)
     output3 = rbind (output3, tmpOUT )
@@ -904,7 +916,14 @@ for (ss in 1:3 ) { #loop through each site length(sitesVD), ss = 25 (SB02)
   
 }
 
+fnameOut =  paste0(outDir, "Summary2019_ver", DC, ".csv")  
+write.csv(output2,fnameOut) 
 
+fnameOut =  paste0(outDir, "SummaryALL_ver", DC, ".csv")  
+write.csv(output,fnameOut) 
+
+fnameOut =  paste0(outDir, "Summary2020_ver", DC, ".csv")  
+write.csv(output3,fnameOut) 
 
 # colnames(output) = c("Site","Start Day","End Day",
 #                      "shipFiles", "SPLfiles", "TotalDays",
