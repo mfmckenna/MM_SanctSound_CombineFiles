@@ -74,6 +74,10 @@ fileSummary = as.data.frame( fileSummary )
 SPL04$OL_63  = as.numeric(as.character(SPL04$OL_63))
 SPL04$OL_125 = as.numeric( as.character(SPL04$OL_125))
 SPL04$DateTime2 = as.POSIXct(SPL04$DateTime ,tz = "GMT")
+SPL04keep = SPL04
+
+keep = c("MB01","MB02","MB03","SB01","SB02","SB03")
+SPL04 = SPL04[SPL04$Site %in% keep, ]
 
 #APRIL COMPARISON-- all sites 
 ggplot(SPL04, aes(as.factor(Yr), OL_125, group = as.factor(Yr))) +
@@ -123,6 +127,11 @@ for (ss in 1:length(uSites) ) {
 
 #Difference MONTH COMPARISION--- 2019 vs 2020
 SPLAll1 = SPLAll[SPLAll$Yr == 2019 | SPLAll$Yr == 2020, ]
+SPLAll1keep = SPLAll1
+
+keep = c("MB01","MB02","MB03","SB01","SB02","SB03")
+SPLAll1 = SPLAll1[SPLAll1$Site %in% keep, ]
+
 #summarize by year, month median values for 63 and 125
 by125 = as.data.frame ( SPLAll1 %>%
   group_by(Site,Mth,Yr) %>%
@@ -130,7 +139,7 @@ by125 = as.data.frame ( SPLAll1 %>%
 
 #CHECK TO MAKE SURE SUM IS CORRECT... BOXPLOT WAS CHANGING THE VALUES INCLUDED!!! so numbers were not matching!!!
 t1 = SPLAll1[SPLAll1$Site == "CI01", ]
-t1 = t1[t1$Mth== "9", ]
+t1 = t1[t1$Mth== "9", ]AS
 t1 = ( t1[t1$Yr== "2019", ] )
 mean(t1$OL_125)
 quantile(t1$OL_125,.5)
@@ -166,8 +175,8 @@ diff1$Mth = ordered(diff1$Mth,levels = c("1", "2", "3", "4", "5", "6", "7", "8",
 
 ggplot(diff1, aes(Mth, Site, fill=as.numeric(as.character(Diff_125)) ) ) +
   geom_tile()+
-  scale_fill_gradient2(low="blue", high="orange")+
-  ggtitle("Change in 125 Hz (difference 2020-2019)") +
+  scale_fill_gradient2(low="blue", high="red")+
+  ggtitle("Difference in median low-frequency sound level at 125 Hz (2020-2019)") +
  theme( legend.title = element_blank() )
 
 #-----------------------------------------------------------------------------------------
@@ -246,6 +255,7 @@ ggplot(SPLApr, aes(as.factor(Yr), OL_125, group = as.factor(Yr))) +
         plot.background  = element_rect(fill = "transparent", color = NA),
         plot.margin      = unit(c(1,2,2,2), "lines"),
         legend.position = "none") 
+
 #PLOT: Comparison of sound levels- by site for each month 2019,2020,2021
 #-----------------------------------------------------------------------------------------
 SPL = SPL[SPL$Yr >2018,] #remove 2018 data
