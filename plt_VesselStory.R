@@ -201,12 +201,70 @@ ggplot(output4, aes(as.factor(Mth), Site, fill=as.numeric(as.character(PrpHRSVES
   theme( legend.title = element_blank() ) +
   ggtitle("Proportion of hours with vessel noise")
 
-#LISTENING RANGE
+#LISTENING RANGE-- CI sites only
 #-----------------------------------------------------------------------------------------
+OUT = readxl::read_xlsx("G:\\My Drive\\ActiveProjects\\SANCTSOUND\\LR_125Hz\\CI_125Hz_LR_SNR_0dB.xlsx")
+#listening ranges for MARCH at sites in Channel Islands
+usite = unique(OUT$Site)
+OUTsum = NULL
+for (ss in 1:length(usite)){
+  
+  tmp = OUT[OUT$Site == usite[ss] & OUT$Month == 10,]
+  #summary(tmp)
+  avg = mean(tmp$`Listening Range, km`) 
+  std = sd(tmp$`Listening Range, km` )
+  
+  zer = sum(tmp$`Listening Range, km` == 0 )/nrow(tmp)
+  greater10km = sum(tmp$`Listening Range, km` >10000 )/nrow(tmp)
+  greater10km0 = sum(tmp$`Listening Range, km` >10000 )/ sum(tmp$`Listening Range, km` != 0 )
+  
+  OUTsum = rbind(OUTsum, c(usite[ss],round(avg), round(std), round(zer,2), round(greater10km, 2),round(greater10km0, 2)  ) )
+}
+colnames( OUTsum ) = c("SiteSum","avgRange_km","sdRange_km", "Percent0","Percent>10km","Percent>10km0")
+OUTsum = as.data.frame( OUTsum )
+OUTsum$Location = c("Santa Rosa (N)","San Miguel (W)","SanNic (E)","Santa Rosa (S)", "Anacapa (E)")
 
 keep = as.data.frame ( rbind(
-  c("CI04",3), c("CI02",3) ,c("CI01",3)), c("CI05",3) )
+  c("CI01",6), c("CI02",6) ,c("CI03",6), c("CI04",6),c("CI05",6)) )
 colnames(keep) = c("site","mth") 
+#NOTE: CI01 might be corrupt??
+keep$mth =  as.numeric( as.character(keep$mth) )
+keep$site = as.character(keep$site) 
+outputKeep = NULL
+for (kk in 1:nrow(keep)){
+  tmp = output4[ output4$Site == keep[kk,1] & output4$Mth == keep[kk,2],] 
+  outputKeep = rbind(outputKeep,tmp)
+}
+colnames(outputKeep) = colnames(output4)
+outputKeep$Site = as.character(outputKeep$Site ) 
+
+#order site by percent of day
+tmp = outputKeep %>% arrange(PropVessel_daily_mean)
+outputKeep$Site2 = factor(outputKeep$Site, levels = tmp$Site, ordered=T)
+outputKeep$Site
+
+#add listening range values
+OUTsum2 = OUTsum[OUTsum$Site !="CI03",]
+outputKeep = cbind(outputKeep,OUTsum2[1:7])
+outputKeep$Site
+outputKeep$SiteSum
+
+as.data.frame(colnames(outputKeep))
+outputKeep$`Percent>10km` = as.numeric(as.character(outputKeep$`Percent>10km`))*100
+colnames(outputKeep)[73] = "AIS traffic >100 m"
+colnames(outputKeep)[74] = "Total unique AIS vessels"
+outputKeep$Location
+outputKeep$NoVESS_OL_median_125[4] = outputKeep$OL_median_125[4]
+round(outputKeep$OL_median_125 - outputKeep$NoVESS_OL_median_125)
+
+ggplot(outputKeep, aes(y =`Percent>10km`, x = NoVESS_OL_median_125, label= Location) ) +
+  geom_point(aes(size = `Total unique AIS vessels`) ) +
+  #scale_color_manual(values=c("#999999", "#E69F00") ) +
+  labs(caption = "Summer 2019") +
+  xlab("Median Sound Level \n 125 Hz OTB (no vessel periods)") + ylab("Percent of listening ranges >10 km") +
+  geom_text(aes(label=Location),hjust=.46, vjust=-1.6, size = 3)+
+  theme_minimal(base_size = 12)
+#NEED TO FIX CI02- san miguel
 
 #MULTIPLE DIMENSIONS
 #-----------------------------------------------------------------------------------------
