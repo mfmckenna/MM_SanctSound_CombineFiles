@@ -216,7 +216,7 @@ grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,nrow = 3, ncol = 3)
 pBB
 
 #BB new data: 125-16000 Hz to match OL graphics
-dirBB = "E:\\RESEARCH\\SanctSound\\data\\updatedBB"
+dirBB = "E:\\RESEARCH\\SanctSound\\data\\SPL_updatedBB"
 nFiles = length( list.files(dirBB))
 analysisPeriods = read.csv("E:\\RESEARCH\\SanctSound\\data\\AnalysisPeriods.csv")
 BBv2 = NULL
@@ -248,6 +248,27 @@ pBB2 = ggplot(BBv2, aes(x= (as.character(YR)), y = `BB_88-22720`, fill = Site2) 
 # coord_cartesian(ylim = c(70, 120)) 
 pBB
 pBB2
+
+#for web story...
+BBv2w = BBv2[BBv2$Site =="SB01" | BBv2$Site =="OC01" | BBv2$Site =="GR01", ]
+BBv2w$Site2 = factor(BBv2w$Site ,levels=c("SB01","OC01","GR01"))
+BBv2w$YR = year( BBv2w$Day )
+pBB2web = ggplot(BBv2w, aes(x= (as.character(YR)), y = `BB_88-22720`, fill = Site2 ) ) +
+  geom_boxplot(outlier.size = .2, outlier.color = "gray" ) +
+  mytheme +
+  theme(legend.position = 'none', axis.text.x = element_blank() ) +
+  xlab( "") +   ylab( expression(paste("Sound Levels dB re: 1", mu, "Pa") ) ) + 
+  ggtitle("") +
+  annotate(geom="text", x=1, y=125, label="Olympic Coast",
+           color="black",fontface="bold") +
+  annotate(geom="text", x=.75, y=125, label="Stellwagon",
+         color="black",fontface="bold") +
+  annotate(geom="text", x=1.25, y=125, label="Gray's Reef",
+           color="black",fontface="bold")
+
+pBB2web
+
+
 #-----------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------
 #SBO1- bio does not contribute to SPLs in ships dominate SPL levels, adapted from combineFiles_SantSound_saveOut_SB.R

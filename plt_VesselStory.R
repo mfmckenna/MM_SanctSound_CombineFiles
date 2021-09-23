@@ -256,7 +256,7 @@ colnames(outputKeep)[74] = "Total unique AIS vessels"
 outputKeep$Location
 outputKeep$NoVESS_OL_median_125[4] = outputKeep$OL_median_125[4]
 round(outputKeep$OL_median_125 - outputKeep$NoVESS_OL_median_125)
-
+round(outputKeep$OL_median_125)
 ggplot(outputKeep, aes(y =`Percent>10km`, x = NoVESS_OL_median_125, label= Location) ) +
   geom_point(aes(size = `Total unique AIS vessels`) ) +
   #scale_color_manual(values=c("#999999", "#E69F00") ) +
