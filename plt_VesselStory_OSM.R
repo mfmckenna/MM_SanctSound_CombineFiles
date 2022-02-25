@@ -1,6 +1,6 @@
 #PLOTS FOR VESSEL STORY MAP
-# INPUT: output of 1b_processVesselDetectionsAIS.R
-# OUTPUT: Graphcs for each section of story map
+# INPUT:  output of 1b_processVesselDetectionsAIS.R (combined data products together)
+# OUTPUT: Graphics for each section of story map
 library(ggplot2)
 library(viridis)
 library(dplyr)
@@ -20,14 +20,24 @@ blank_theme <- theme_minimal()+
 #-----------------------------------------------------------------------------------------
 #read in files
 #-----------------------------------------------------------------------------------------
-setwd("E:\\RESEARCH\\SanctSound\\data2\\combineFiles1_SPLShips\\")# Summary2019Month_ver2021-09-02.csv
+setwd("E:\\RESEARCH\\SanctSound\\data2\\combineFiles1_SPLShips\\")# Summary2019Month_ver2022-01-21.csv
 infile = choose.files()
 output4 = read.csv(infile)
 as.data.frame(colnames(output4))
 output4$Site
 output4[, 64:66] = as.numeric( unlist( output4[, 64:66] ) )
 orgData = output4
-#-----------------------------------------------------------------------------------------
+
+#all site lat/longs
+siteLoc = read.csv("E:\\RESEARCH\\SanctSound\\data\\SiteLocations.csv")
+siteLoc = siteLoc[,1:3]
+#2020 data for comparison
+infile = choose.files() #Summary 2020Month_ver2021-10-06.csv
+out2020in = read.csv(infile)
+#which sites have April data
+t1 = ( unique(out2020in$Site[out2020in$Mth == 4] ) )
+t2 = ( unique(output4$Site[output4$Mth == 4] ) )
+t1[ t1 %in% t2 ]
 
 #-----------------------------------------------------------------------------------------
 ##Summary of sampling across 2019- tile plot
@@ -48,7 +58,6 @@ output4$ALL_UV_sum = output4$LOA_S_UV_sum + output4$LOA_M_UV_sum + output4$LOA_L
 #-----------------------------------------------------------------------------------------
 ##Sound Levels with/without vessels-- all sites tile plots, histogram
 #-----------------------------------------------------------------------------------------
-as.data.frame(colnames(output4))
 #ALL days, ALL SITES, ALL MONTHS
 ggplot(output4, aes(as.factor(Mth), Site, fill=as.numeric(as.character(OL_median_125)) ) ) +
   geom_tile()+
@@ -68,12 +77,13 @@ ggplot(output4, aes(as.factor(Mth), Site, fill=as.numeric(as.character(YVess125_
   theme( legend.title = element_blank() ) +
   ggtitle("Octave Band Sound Pressure Level (vessel hours) [125 Hz]")
 
+#USE IN OSM PPT
 ggplot(output4, aes(as.factor(Mth), Site, fill=as.numeric(as.character(NoiseAdd)) ) ) +
   geom_tile()+
   scale_fill_gradient2(low = "darkgreen", mid = "white", high = "darkred")+
-  xlab("Month in 2019")+ 
-  theme( legend.title = element_blank() ) +
-  ggtitle("Noise added when vessel noise dominant")
+  xlab("2019")+ 
+  theme( legend.title = element_blank() ) #+
+  #ggtitle("Noise added when vessel noise dominant")
 
 #distributions of sound levels with and without vessels present
 mycol <- rgb(0, 0, 255, max = 255, alpha = 125, names = "blue50")
@@ -121,12 +131,66 @@ ggplot(output4m, aes(fill=variable, y=value, x=Site)) +
   geom_bar(position="fill", stat="identity",width = .75)+
   xlab("")+ ylab("")+
   scale_fill_viridis(discrete = T, name = "Vessel Size", labels = c("Small (<20m)", "Medium (20-100m)", "Large (>100m)")) +
-  ggtitle("Composition of AIS Vessel Traffic")+
+  ggtitle("Composition of AIS Vessel Traffic")+AS
   #labs(subtitle = "Data source: Jan 2019 (HI,FK); Apr 2019 (CI); Nov 2019 (SB,OC,MB)")+
   theme_minimal()+
   theme(axis.text.x   = element_text(angle = 45), 
         plot.subtitle = element_text(color = "black", size = 14, face = "italic"),legend.position = "none" )
 #NOTE: export and overlay in illustrator with sound levels
+
+
+## AIS COMPOSITION ON MAP... for these months
+#http://www.spectdata.com/index.php/2018/10/25/how-to-use-ggplot-to-plot-pie-charts-on-a-map/
+#combining data
+cData = merge(outputKeep, siteLoc, by.x = "Site")
+as.data.frame(colnames(cData))
+cData = cbind( cData[1],cData[64:66], cData[102:103])
+cData$Total = cData$LOA_S_UV_sum + cData$LOA_M_UV_sum + cData$LOA_L_UV_sum
+cData$Small  = cData$LOA_S_UV_sum/cData$Total
+cData$Medium = cData$LOA_M_UV_sum/cData$Total
+cData$Large  = cData$LOA_L_UV_sum/cData$Total
+
+# need a matrix with repeat lat lon f
+
+library(scatterpie)
+#https://cran.r-project.org/web/packages/scatterpie/vignettes/scatterpie.html
+#cDatam = reshape2 :: melt(cData, id.vars = c("Site","lat","lon"), measure.vars = c("Small","Medium","Large" ))
+
+sum( cData$Total )
+cData$x = seq(1,nrow(cData), by = 1)
+cData$y = seq(1,nrow(cData), by = 1)
+
+cData$norTotal = (cData$Total  - min(cData$Total)) / (max(cData$Total) -  min(cData$Total) )
+cData$norTotal = (cData$Total  - min(cData$Total)) / (max(cData$Total) -  min(cData$Total) )
+
+cData$SiteCnt = paste0(cData$Site, " (", cData$Total, ")")
+ggplot() + geom_scatterpie(aes(x=lon, y=lat), data=cData, cols=c("Small","Medium","Large" ))  + coord_equal()
+#too much overlap...
+
+P = ggplot() + geom_scatterpie(aes(x=x, y=y, r=norTotal) , data=cData, cols=c("Small","Medium","Large" )) + coord_equal() +
+  geom_text(data = cData, aes(x=x, y=y, label = Site ), vjust = 0, nudge_y = 0.5, size = 2)  
+P + geom_scatterpie_legend(cData$norTotal, x=20, y=5)
+#too big a size difference...
+
+P = ggplot() + geom_scatterpie(aes(x=x, y=y) , data=cData, cols=c("Small","Medium","Large" )) + coord_equal() +
+  geom_text(data = cData, aes(x=x, y=y, label = SiteCnt ), vjust = 0, nudge_y = 0.5, size = 2)  
+P #copied to illustrator to put this graphics together-- because so much overlap in sites on this graphic... really only works for within sanctuary comparisons
+
+
+world <- map_data('world')
+p = ggplot(world, aes(long, lat)) +
+  geom_map(map=world, aes(map_id=region), fill="gray90", color="black") +
+  geom_point(data = cData, aes(x=lon, y=lat), color = "red", size = 1) +
+  geom_text(data = cData, aes(x=lon, y=lat, label = Site ), size = 2)  +
+  coord_quickmap()+
+  xlim(-160,-60) + ylim(10, 55) +
+  theme_minimal()
+p #copied to illustrator to put this graphics together-- because so much overlap in sites on this graphic... really only works for within sanctuary comparisons
+
+p2 = p + geom_scatterpie(aes(x=lon, y=lat, r=norTotal), data=cData, cols=c("Small","Medium","Large" ), alpha=.8)+
+  geom_scatterpie_legend(cData$norTotal, x=-140, y=40)
+p2 # too much overlap to see anything
+
 
 #-------------------- ---------------------------------------------------------------------
 #SOUND LEVELS AND AIS traffic- scatter plots with error bars
@@ -281,6 +345,15 @@ ggplot(output4m, aes(fill=variable, y=value, x=Site)) +
   ggtitle("Vessel Noise Presence") +
   theme_classic() +
   theme(legend.position = "none",plot.subtitle = element_text(color = "dark gray", size = 10, face = "italic") )
+
+#USE IN OSM PPT--- across all site months
+#PrpHRSVESS*100  PropVessel_daily_mean
+ggplot(output4, aes(as.factor(Mth), Site, fill=as.numeric(as.character(PrpHRSVESS*100 )) ) ) +
+  geom_tile()+
+  scale_fill_gradient2(low = "darkgreen", mid = "white", high = "darkred")+
+  xlab("2019")+ 
+  theme( legend.title = element_blank() ) #+
+#ggtitle("Noise added when vessel noise dominant")
 
 # Prop of hours with vessels present, over month (USE THIS!)
 tmp = outputKeep %>% arrange(PrpHrsQUIET)
@@ -450,6 +523,75 @@ p3 = ggplot(tmpm, aes(x="", y=value, fill=Vessel)) +
                 label = paste0(Label,"%") ), size=5)
 grid.arrange(p1,p2,p3,nrow=1)
 
+# Multiple metrics: CI01
+#-------------------------------------------------------------------------------------------------
+capt = "Channel Islands (01) April 2019"
+tmp$LOA_ALL_OPHRS_mean
+tmp$LOA_ALL_OPHRS_SD
+tmp$LOA_ALL_UV_mean
+tmp$LOA_ALL_UV_SD
+
+tmp = output4[ output4$Site == "CI01" & output4$Mth ==4,] 
+tmpm = reshape2 :: melt(tmp, id.vars = "Site", measure.vars = c("YVess125_med","NVess125_med" ))
+tmpsd = reshape2 :: melt(tmp, id.vars = "Site", measure.vars = c("YVess125_sd","NVess125_sd" ))
+tmpm = cbind(tmpm,tmpsd$value)
+colnames(tmpm)[4] = "sd"
+tmpm$variable2 = c("vessel","no vessel")
+p1= ggplot(tmpm, aes(x =variable2, y=value, fill = variable2) )  + 
+  geom_bar(stat="identity", width = .7) +
+  geom_text(aes(label=round(value)), vjust=1.6, color="black", size=5)+
+  geom_errorbar(aes(ymin=value-sd, ymax=value+sd), width=.2,
+                position=position_dodge(.9)) +
+  coord_cartesian(ylim=c(70,100))+
+  scale_fill_brewer(palette="Paired") +
+  scale_x_discrete(limits=c("vessel", "no vessel")) +
+  labs(title="Sound Level Metric: hours with and without vessel noise detected", 
+       x="", y = "Median Sound Level in 125 Hz octave band", caption = capt) +
+  theme(legend.position = "none", panel.background = element_rect(fill = "transparent"), 
+        plot.background  = element_rect(fill = "transparent", color = NA) ,
+        panel.grid.major = element_line(colour = "grey90"),
+        axis.text.x = element_text(color = "grey20", size = 10, face = "plain"),)
+
+#vessel presence- donuts
+tmpm = reshape2 :: melt(tmp, id.vars = "Site", measure.vars = c("PrpHRSVESS","PrpHrsQUIET" ))
+tmpm$variable2 = c("vessel","no vessel")
+tmpm$fraction = tmpm$value / sum(tmpm$value)
+tmpm$ymax = cumsum(tmpm$fraction)
+tmpm$ymin = c(0, head(tmpm$ymax, n=-1))
+tmpm$labelPosition <- (tmpm$ymax + tmpm$ymin) / 2
+tmpm$label <- paste0(tmpm$variable2, "\n ", round(tmpm$value *100) ,"%")
+
+p2 = ggplot(tmpm, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=variable2)) +
+  geom_rect() +
+  geom_label( x=3.5, aes(y=labelPosition, label=label), size=3) +
+  scale_fill_brewer(palette=4) +
+  coord_polar(theta="y") +
+  scale_fill_brewer(palette="Paired") +
+  scale_color_brewer(palette=2) +
+  xlim(c(2, 4)) +
+  theme_void() +
+  labs(caption = capt)+
+  theme(legend.position = "none")+
+  ggtitle("Vessel Noise Metric: % of hours with vessel detections")
+
+tmpm = reshape2 :: melt(tmp, id.vars = "Site", measure.vars = c("LOA_S_UV_sum","LOA_M_UV_sum" ,"LOA_L_UV_sum"))
+tmpm$Vessel = c("small","medium","large")
+tmpm$Label[1]= round( (tmpm$value[1]/ cumsum(tmpm$value)[3] )*100) 
+tmpm$Label[2]= round( (tmpm$value[2]/ cumsum(tmpm$value)[3] )*100)
+tmpm$Label[3]= round( (tmpm$value[3]/ cumsum(tmpm$value)[3] )*100)
+p3 = ggplot(tmpm, aes(x="", y=value, fill=Vessel)) +
+  geom_bar(width = 1, stat = "identity")+
+  coord_polar("y", start=0)+
+  scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9"))+
+  #scale_fill_brewer(palette="Blues")+
+  blank_theme+
+  labs(caption = capt)+
+  ggtitle("Vessel Traffic  Metric: composition of AIS vessels") +
+  theme(axis.text.x=element_blank()) +
+  geom_text(aes(y = value/3 + c(0, cumsum(value)[-length(value)]), 
+                label = paste0(Label,"%") ), size=5)
+grid.arrange(p1,p2,p3,nrow=1)
+
 
 # Multiple metrics: GR01-- no vessels
 #----------------------------------------------------------------------------------------------------
@@ -517,13 +659,15 @@ grid.arrange(p1,p2,p3,nrow=1)
 
 
 ## Multiple metrics all sites-  bubble chart
+#----------------------------------------------------------------------------
 #Y = VESS, X = SPL, Size = AIS, color = PROP
 #truncate to data of interest AND add shipping lane to the sites info
 #----------------------------------------------------------------------------
+#c("OC01",4,"N"),c("OC04",4,"N"),
 keep = as.data.frame ( rbind(
   c("SB01",3,"Y"), c("SB02",3,"Y"),  c("SB03",3,"Y"),
   c("HI03",1,"N"), c("HI01",1,"N"),
-  c("OC01",4,"N"), c("OC02",4,"Y"),  c("OC04",4,"N"),
+  c("OC02",4,"Y"), 
   c("MB01",3,"N"), c("MB02",3,"N"),  c("MB03",3,"Y"),
   c("GR01",5,"N"), c("GR02",5,"N"),  c("GR03",5,"N"),
   c("FK01",3,"N"), c("FK02",3,"N"),  c("FK03",3,"N"),  c("FK04",3,"N"),
@@ -548,6 +692,7 @@ outputKeep$Site = factor(outputKeep$Site, levels = tmp$Site, ordered=T)
 outputKeep$PropL = (outputKeep$LOA_L_UV_sum/ (outputKeep$LOA_S_UV_sum +outputKeep$LOA_M_UV_sum +outputKeep$LOA_L_UV_sum))*100
 colnames(outputKeep)[74] = "AIS traffic >100 m"
 as.data.frame(colnames (outputKeep) )
+
 
 ggplot(outputKeep, aes(y = PrpHRSVESS*100, x = NoiseAdd, color = ShipLane, label= Site) ) +
   geom_point(aes(size = PropL,) ) + #ALL_UV_sum-- not very informative
@@ -586,212 +731,50 @@ ggplot(outputKeep, aes(y = PrpHRSVESS*100, x = NoiseAdd, color = ShipLane, label
          plot.caption  = element_text(color = "dark gray",  size = 10, face = "italic") )
 
 
-# then for each quadrant, plot the AIS compositions
-
-
-#----------------------------------------------------------------------------
-## ANIMATION bubbles moving in 2020 for MB and SB sites
-#https://www.r-graph-gallery.com/320-the-basis-of-bubble-plot.html 
-#https://towardsdatascience.com/animating-your-data-visualizations-like-a-boss-using-r-f94ae20843e3
-#read in 2020 data
-#----------------------------------------------------------------------------
-#March, May
-#----------------------------------------------------------------------------
-keep = as.data.frame ( rbind(
-  c("SB01",3,"Y"), c("SB02",3,"Y"),  c("SB03",3,"Y"),
-  c("OC01",3,"N"),
-  c("MB02",3,"N"),
-  c("GR01",5,"N")) )
-colnames(keep) = c("Site","Mth","ShipLane") 
-keep$Mth =  as.numeric( as.character(keep$Mth) )
-keep$Site = as.character(keep$Site) 
-keep$ShipLane = as.character(keep$ShipLane)
-outputKeep = NULL
-for (kk in 1:nrow(keep)){
-  tmp = output4[ output4$Site == keep[kk,1] & output4$Mth == keep[kk,2],] 
-  tmp$ShipLane = keep[kk,3]
-  outputKeep = rbind(outputKeep, tmp )
-}
-colnames(outputKeep) = c( colnames(output4) , "ShipLane")
-outputKeep$Site = as.character(outputKeep$Site) 
+# AMOUNT VESSEL TRAFFIC: AIS detections vs Vessel detections
+#IN PPT
 as.data.frame(colnames(output4))
-#order site by percent of day
-tmp = outputKeep %>% arrange(PropVessel_daily_mean)
-outputKeep$Site = factor(outputKeep$Site, levels = tmp$Site, ordered=T)
-outputKeep$PropL = (outputKeep$LOA_L_UV_sum/ (outputKeep$LOA_S_UV_sum +outputKeep$LOA_M_UV_sum +outputKeep$LOA_L_UV_sum))*100
-colnames(outputKeep)[74] = "AIS traffic >100 m"
-as.data.frame(colnames (outputKeep) )
-
-
-
-out2020in = read.csv("E:\\RESEARCH\\SanctSound\\data2\\combineFiles1_SPLShips\\Summary 2020Month_ver2021-10-06.csv")
-#calculate noise added
-out2020in$NoiseAdd = out2020in$YVess125_med - out2020in$NVess125_med
-out2020in$PropL = (out2020in$LOA_L_UV_sum/ (out2020in$LOA_S_UV_sum +out2020in$LOA_M_UV_sum + out2020in$LOA_L_UV_sum) ) *100
-# only keep same months as 2019
-outputKeep20 = NULL
-for (kk in 1:nrow(keep)){
-  tmp = out2020in[ out2020in$Site == keep[kk,1] & out2020in$Mth == keep[kk,2],] 
-  if (nrow(tmp) > 0){ 
-    tmp$ShipLane = keep[kk,3]
-    outputKeep20 = rbind(outputKeep20, tmp )
-  }
-}
-outputKeep20$Site = as.character(outputKeep20$Site) 
-
-myvars <- c("Site", "PrpHRSVESS", "NoiseAdd", "ShipLane", "YR_mean", 'PropL',"OL_median_125")
-out2020 =  outputKeep20[myvars]
-out2019 = outputKeep[myvars]
-outputChange = rbind(out2020, out2019)  
-
-p  = ggplot(outputChange, aes(y = PrpHRSVESS, x = OL_median_125, color = ShipLane, label= Site) ) +
-  geom_point(aes(size = PropL, alpha = .6) ) +
-  scale_size(range = c(.1, 24), name="Proportion of Traffic large (>100m)") +
-  scale_color_manual(values=c("#999999", "#E69F00") ) +
-  xlab("Sound Level (125 Hz octave band)") + ylab("Proportion of hours with vessel noise") +
-  labs(title    = "", 
-       subtitle = "Data source: monthly averages for Mar (SB,MB, OC), May (GR)",
-       caption =  "orange = shiplane within 10 km \n bubble size = Percent of AIS traffic large vessels (>100m)")+
-  geom_text(aes(label=Site), hjust=1.5, vjust=0, size = 3)+
-  xlim(c(85,100)) +
-  theme_minimal(base_size = 18) +
+outputKeep$Sant = substr(outputKeep$Site,1,2)
+ggplot(outputKeep, aes(x = TotalVesselDet_cnt_mean, y = LOA_ALL_UV_mean) ) +
+  geom_errorbar (aes(ymin=LOA_ALL_UV_mean- LOA_ALL_UV_SD/sqrt(Days), 
+                     ymax=LOA_ALL_UV_mean+ LOA_ALL_UV_SD/sqrt(Days)), 
+                 colour="gray", width=0) +
+  geom_errorbarh(aes(xmin=TotalVesselDet_cnt_mean- TotalVesselDet_cnt_SD/sqrt(Days), 
+                     xmax=TotalVesselDet_cnt_mean+ TotalVesselDet_cnt_SD/sqrt(Days)), 
+                 colour="gray", width=0) +
+  ylim(0,25)+   xlim(0,25)+
+  geom_point(aes(size = LOA_ALL_OPHRS_mean, color = Sant) ) +
+  #geom_smooth(method = "lm",formula = y ~ x, size = 1, se = FALSE, color = "black")+
+  geom_text(aes(label=Site), hjust=1.2, vjust=0, size = 3)+
+  xlab("LISTEN: mean daily count of detections") + ylab("AIS: mean daily unique vessel count") +
+  labs(size = "AIS operational hours in day")+
+  theme_minimal(base_size = 18)+
   theme( plot.title=element_text(size=18, face="bold"), 
-         legend.position = "none",
+         legend.position = "bottom")
+outputKeep$LOA_ALL_UV_SD/sqrt(outputKeep$Days)
+#SIZE: PropVessel_daily_mean OR LOA_ALL_OPHRS_mean
+#labs(size = "% of day with vessel noise")
+
+# Duration of VESSEL TRAFFIC: AIS OPHRS (daily mean) vs Vessel duration (percent of day)
+#NOTE USED!
+as.data.frame(colnames(output4))
+output4$PropVessel_daily_mean #% of day
+outputKeep$LOA_ALL_OPHRS_meanPer = (outputKeep$LOA_ALL_OPHRS_mean/24)*100
+
+
+ggplot(outputKeep, aes(x = PropVessel_daily_mean, y = LOA_ALL_OPHRS_meanPer) ) +
+  #geom_errorbar (aes(ymin=LOA_ALL_OPHRS_mean- LOA_ALL_OPHRS_SD/sqrt(Days), ymax=LOA_ALL_OPHRS_mean+ LOA_ALL_OPHRS_SD/sqrt(Days)), colour="gray", width=.1) +
+  geom_errorbarh(aes(xmin=PropVessel_daily_mean- PropVessel_daily_SD/sqrt(Days), xmax=PropVessel_daily_mean+ PropVessel_daily_SD/sqrt(Days)), colour="gray", width=.1) +
+  geom_point(aes(size = PropVessel_daily_mean) ) +
+  geom_smooth(method = "lm",formula = y ~ x, size = 1, se = FALSE, color = "black")+
+  geom_text(aes(label=Site), hjust=1.2, vjust=0, size = 3)+
+  xlab("Listen: mean % day") + ylab("AIS: mean % day") +
+  labs(size = "% of day with vessel noise")+
+  theme_minimal(base_size = 18)+
+  theme( plot.title=element_text(size=18, face="bold"), 
+         legend.position = "bottom",
          plot.subtitle  = element_text(color = "dark gray", size = 10, face = "italic"),
          plot.caption  = element_text(color = "dark gray",  size = 10, face = "italic") )
-
-plot(p)
-# Animate
-anim <- p + 
-  # Transition between species, spending 1s in each Species and animating for 
-  # 2s between states... can use different types of transitions this is good for categorical variables
-  
-  transition_states(YR_mean,
-                    transition_length = 2,
-                    state_length = 1) +
-  # Use an easing function to make the movement more natural
-  ease_aes('cubic-in-out') +
-  # Add a title so audience knows what they're seeing 
-  ggtitle('Year = {closest_state}')
-
-# Show in RStudio
-anim
-# Save to GIF
-#anim_save("iris_species_animations.gif",animation = anim)
-animate(anim, duration = 5, fps = 20, width = 500, height = 500, renderer = gifski_renderer())
-
-#INterpretation
-outputChange[outputChange$Site == "MB02", ] #inshore, fishing?
-#louder, more vessel presence, slightly more large
-outputChange[outputChange$Site == "GR01", ] #inshore, biology?
-#louder, less vessel presence, slightly less large
-outputChange[outputChange$Site == "OC01", ] #inshore, tide?
-#same, slightly more vessel presence,  less large
-outputChange[outputChange$Site == "SB01", ] #biologics, distant source?
-#quieter,less vessel presence. less large
-
-#----------------------------------------------------------------------------
-#April
-#----------------------------------------------------------------------------
-keep = as.data.frame ( rbind(
-  c("SB01",4,"Y"), c("SB02",4,"Y"),  c("SB03",4,"Y"),
-  c("OC01",4,"N"),
-  c("MB02",4,"N"), c("MB01",4,"N"),
-  c("GR01",5,"N") ) )
-colnames(keep) = c("Site","Mth","ShipLane") 
-keep$Mth =  as.numeric( as.character(keep$Mth) )
-keep$Site = as.character(keep$Site) 
-keep$ShipLane = as.character(keep$ShipLane)
-colnames(keep) = c("Site","Mth","ShipLane") 
-outputKeep = NULL
-for (kk in 1:nrow(keep)){
-  tmp = output4[ output4$Site == keep[kk,1] & output4$Mth == keep[kk,2],] 
-  tmp$ShipLane = keep[kk,3]
-  outputKeep = rbind(outputKeep, tmp )
-}
-colnames(outputKeep) = c( colnames(output4) , "ShipLane")
-outputKeep$Site = as.character(outputKeep$Site) 
-as.data.frame(colnames(output4))
-#order site by percent of day
-tmp = outputKeep %>% arrange(PropVessel_daily_mean)
-outputKeep$Site = factor(outputKeep$Site, levels = tmp$Site, ordered=T)
-outputKeep$PropL = (outputKeep$LOA_L_UV_sum/ (outputKeep$LOA_S_UV_sum +outputKeep$LOA_M_UV_sum +outputKeep$LOA_L_UV_sum))*100
-colnames(outputKeep)[74] = "AIS traffic >100 m"
-as.data.frame(colnames (outputKeep) )
-
-
-myvars <- c("Site", "PrpHRSVESS", "NoiseAdd", "ShipLane", "YR_mean", 'PropL',"OL_median_125")
-out2020in = read.csv("E:\\RESEARCH\\SanctSound\\data2\\combineFiles1_SPLShips\\Summary 2020Month_ver2021-10-06.csv")
-#calculate noise added
-out2020in$NoiseAdd = out2020in$YVess125_med - out2020in$NVess125_med
-out2020in$PropL = (out2020in$LOA_L_UV_sum/ (out2020in$LOA_S_UV_sum +out2020in$LOA_M_UV_sum + out2020in$LOA_L_UV_sum) ) *100
-# only keep same months as 2019
-outputKeep20 = NULL
-for (kk in 1:nrow(keep)){
-  tmp = out2020in[ out2020in$Site == keep[kk,1] & out2020in$Mth == keep[kk,2],] 
-  if (nrow(tmp) > 0){ 
-    tmp$ShipLane = keep[kk,3]
-    outputKeep20 = rbind(outputKeep20, tmp )
-  }
-}
-outputKeep20$Site = as.character(outputKeep20$Site) 
-
-out2020 =  outputKeep20[myvars]
-out2019 = outputKeep[myvars]
-outputChange = rbind(out2020, out2019)  
-
-#outputChange2 = outputChange[c(1:9,14,15,19), ] #just keep sites with both years
-library(gganimate)
-library(gridExtra)
-p  = ggplot(outputChange, aes(y = PrpHRSVESS*100, x = OL_median_125, color = ShipLane, label= Site) ) +
-  geom_point(aes(size = PropL) ) +
-  scale_size(range = c(.1, 24), name="Proportion of Traffic large (>100m)") +
-  scale_color_manual(values=c("#999999", "#E69F00") ) +
-  xlab("Low-Frequency Sound Level (125 Hz octave band)") + ylab("Percent of Hours with Vessel Noise") +
-  labs(title    = "", 
-       subtitle = "",
-       caption =  " bubble size = % of AIS vessel traffic larger than 100 m \n orange = shiplane within 10 km")+
-  
-  xlim(c(85,100)) +
-  geom_text(aes(label=Site), hjust=0, vjust=0, size = 3,color = "black")+
-  theme_minimal(base_size = 18) +
-  theme( plot.title=element_text(size=18, face="bold",color = "black"), 
-         legend.position = "none",
-         plot.subtitle  = element_text(color = "dark gray", size = 10, face = "italic"),
-         plot.caption   = element_text(color = "dark gray",  size = 10) )
-
-plot(p)
-# Animate
-anim <- p + 
-  # Transition between species, spending 1s in each Species and animating for 
-  # 2s between states... can use different types of transitions this is good for categorical variables
-  
-  transition_states(YR_mean,
-                    transition_length = 2,
-                    state_length = 1) +
-  # Use an easing function to make the movement more natural
-  ease_aes('cubic-in-out') +
-  # Add a title so audience knows what they're seeing 
-  ggtitle('Year = {closest_state}')
-
-# Show in RStudio
-anim
-
-# Save to GIF
-#anim_save("iris_species_animations.gif",animation = anim)
-animate(anim, duration = 5, fps = 20, width = 500, height = 500, renderer = gifski_renderer())
-
-#Interpretation
-outputChange[outputChange$Site == "MB02", ] 
-#quieter, more vessel presence, no large
-outputChange[outputChange$Site == "MB01", ] 
-#quieter, less vessel presence, NO large
-outputChange[outputChange$Site == "OC01", ]
-#quieter, slightly more vessel presence,  less large
-outputChange[outputChange$Site == "SB01", ] 
-#same, less vessel presence, less large
-outputChange[outputChange$Site == "SB02", ] 
-outputChange[outputChange$Site == "SB03", ] 
 
 
 #-----------------------------------------------------------------------------------------

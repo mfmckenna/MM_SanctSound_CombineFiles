@@ -1,4 +1,4 @@
-#Integrating SanctSound data-- ome initial plots to look at Sound levels, AIS, vessel presence
+#Integrating SanctSound data-- some initial plots to look at Sound levels, AIS, vessel presence
 
 # used to produce plots in RAP May 2021 presentation
 
@@ -11,7 +11,7 @@ library(data.table)
 library(gridExtra)
 
 #-----------------------------------------------------------------------------------------
-### SOUND LEVELS-- all sites with data April 2019 vs 2020 (missing lots of data)
+### SOUND LEVELS-- all sites with data April 2019 vs 2020 (missing lots of data... check this directory)
 #-----------------------------------------------------------------------------------------
 dirOL    = ("E:\\RESEARCH\\SanctSound\\data\\")
 filesOL = list.files (path = dirOL ,pattern = "_OL_1h.csv", full.names=TRUE, recursive = TRUE)

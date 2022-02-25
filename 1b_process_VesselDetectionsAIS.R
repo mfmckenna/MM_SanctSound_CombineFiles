@@ -45,7 +45,7 @@ library(plotly)  #https://www.r-graph-gallery.com/interactive-charts.html
 ra = 7 #days for running average
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 stdize = function(x, ...) {(x - min(x, ...)) / (max(x, ...) - min(x, ...))}
-
+yearflag = 2019
 #-----------------------------------------------------------------------------------------
 # OUTPUT details
 #-----------------------------------------------------------------------------------------
@@ -58,7 +58,7 @@ eDatePlot = '2020-12-31'
 sDatePlot = '2018-11-01'
 
 #some analysis and output flags 
-flagCSV  = FALSE  #true if you want to output hourly and daily csv files per site
+flagCSV  = TRUE  #true if you want to output hourly and daily csv files per site
 flagPLT  = FALSE  #true if you want to output summary plots of data
 flagYear = TRUE   #true writes out a csv of yearly data to be copied into google docs
 
@@ -107,7 +107,7 @@ output2 = NULL #truncate to a give time period
 output3 = NULL #summary of data in a specific time period, entire year 2019
 output4 = NULL #monthly results for 2019 data
 
-for (ss in 1:length(sitesVD)  ) { #24:27  ss = 27
+for (ss in 1:length(sitesVD)  ) { #24:27  ss = 13
   
   cat("Processing site...", sitesVD[ss], ":",ss, "of", length(sitesVD),"\n")
   
@@ -138,6 +138,8 @@ for (ss in 1:length(sitesVD)  ) { #24:27  ss = 27
   for (ff in 1 : nFiles){
     fname  = list.files(path=dirSPL, pattern = "_OL_1h.csv", full.names=FALSE, recursive = TRUE)[ff]
     fnameF = list.files(path=dirSPL, pattern = "_OL_1h.csv", full.names=TRUE, recursive = TRUE)[ff]
+    
+    
     dname  = sapply (strsplit( fname, "_" ),"[",4 )
     tmp    = rbind(fread(fnameF))
     tmp$deploy = dname
@@ -522,6 +524,7 @@ for (ss in 1:length(sitesVD)  ) { #24:27  ss = 27
     
     #FORMAT data
     #-----------------------------------------------------------------------------------------
+    #tst = as.data.frame( gsub(".000Z", "", gsub("T", " ", VESS$V1)) )
     VESS$DateFs   = as.POSIXct( gsub(".000Z", "", gsub("T", " ", VESS$V1)), tz = "GMT" )
     VESS$DateFe   = as.POSIXct( gsub(".000Z", "", gsub("T", " ", VESS$V2)), tz = "GMT" )
     VESS$Dur_mins = VESS$DateFe  - VESS$DateFs #in minutes!
@@ -734,7 +737,7 @@ for (ss in 1:length(sitesVD)  ) { #24:27  ss = 27
     theme(legend.position="none", axis.text.x = element_text(angle=45, hjust = 1),legend.key = element_rect(colour = "transparent", fill = alpha("red", 0))) 
   
   #B2) total operational hours near site
-  dataAISm = reshape2 :: melt(cDatat, id.vars = "Day", measure.vars = c("LOA_S_OPHRS","LOA_M_OPHRS","LOA_L_OPHRS","LOA_ALL_OPHRS" ))
+  dataAISm = reshape2 :: melt(cDatat, id.vars = "Day", measure.vars = c("LOA_S_OPHRS","LOA_M_OPHRS","LOA_L_OPHRS","LOA_ALL_OPHRS" ))  
   dataAISm$Perday = ( (dataAISm$value) / 24)*100 #calcualte percent of day ships operating, can be > 100%
   p5 = ggplot(dataAISm, aes(x=Day, y=Perday, color=factor(variable)) ) +
     geom_point(alpha = .2)+ geom_line(aes(y=rollmean(Perday, ra, na.pad=TRUE)),size=1) +
@@ -901,7 +904,7 @@ for (ss in 1:length(sitesVD)  ) { #24:27  ss = 27
   #-----------------------------------------------------------------------------------------
   #SUMMARY of metrics by site-- truncated time period, 2019 (output2)
   #-----------------------------------------------------------------------------------------
-  yoi = 2019
+  yoi = yearflag
   cDatatKeep = cData  # cData = cDatatKeep
   cData$YR   = year(cData$Day)
   cData      = cData[cData$YR == yoi,]
@@ -999,7 +1002,7 @@ for (ss in 1:length(sitesVD)  ) { #24:27  ss = 27
     output2 = rbind (output2, tmpOUT )
   } else {
  
-    cat("No 2019 data for: ", cDatatKeep$Site[1], "\n")
+    cat("No ", yearflag, "  data for: ", cDatatKeep$Site[1], "\n")
   }
   
   #-----------------------------------------------------------------------------------------
@@ -1017,13 +1020,18 @@ for (ss in 1:length(sitesVD)  ) { #24:27  ss = 27
     cDataM1  = aggregate(cData[,4:14], by=list(cData$Mth), median, na.rm=T)  
     colnames(cDataM1) = gsub("OL","OL_median",colnames(cDataM1))
     colnames(cDataM1) = gsub("BB","BB_median",colnames(cDataM1))
-   
+    
+    # calculate sd values-- 125 Hz SPL (only)
+    cDataSD  = aggregate(cData$OL_125, by=list(cData$Mth), sd, na.rm=T) 
+    cDataM1 = cbind(cDataM1,cDataSD[,2])
+    colnames(cDataM1)[13] = "OL_sd_125"
+    
     # calculate median values--vessel SPL
     SPLvesY = cData[cData$TotalVesselDet_cnt > 0,]
     #ISSUE-- no days with  vessel detections
     if (nrow(SPLvesY)== 0 ){
       cDataM2Y  = cbind(cDataM1$Group.1 , NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA)
-      colnames(cDataM2Y) = colnames(cDataM1)
+      colnames(cDataM2Y) = colnames(cDataM1)[1:12]
       colnames(cDataM2Y) = gsub("OL","VESS_OL",colnames(cDataM2Y))
       colnames(cDataM2Y) = gsub("BB","VESS_BB",colnames(cDataM2Y))
     } else {
@@ -1037,7 +1045,7 @@ for (ss in 1:length(sitesVD)  ) { #24:27  ss = 27
     SPLvesN   = cData[cData$TotalVesselDet_cnt == 0,]
     #ISSUE-- no days without vessel detections
     if (nrow(SPLvesN)== 0 ){
-      cDataM2N  = cbind(cDataM2Y$Group.1 , NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA)
+      cDataM2N  = cbind(cDataM2Y$Group.1, NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA)
       colnames(cDataM2N) = colnames(cDataM2Y)
       colnames(cDataM2N) = gsub("VESS_OL_median","NoVESS_OL_median",colnames(cDataM2N))
       colnames(cDataM2N) = gsub("VESS_BB_median","NoVESS_BB_median",colnames(cDataM2N))
@@ -1052,6 +1060,11 @@ for (ss in 1:length(sitesVD)  ) { #24:27  ss = 27
     # calculate mean values
     cDataM2  = aggregate(cData[,15:ncol(cData)], by=list(cData$Mth), mean, na.rm=T) 
     colnames(cDataM2) = paste0(colnames(cDataM2),"_mean")
+    #SD for vessel metrics
+    as.data.frame(colnames(cData))
+    cDataMSD = aggregate(cData[,15:ncol(cData)], by=list(cData$Mth), sd, na.rm=T) 
+    colnames(cDataMSD) = paste0(colnames(cDataMSD),"_SD")
+    
     # total counts values
     cDataM3 =  aggregate(cData[,c(29,31,33,38)], by=list(cData$Mth), sum, na.rm=T) 
     colnames(cDataM3) = gsub("UV","UV_sum",colnames(cDataM3))
@@ -1059,13 +1072,13 @@ for (ss in 1:length(sitesVD)  ) { #24:27  ss = 27
     colnames(cDataDys) = c("Mth","Days")
     
     #combine
-    cDataM  =NULL
+    cDataM  = NULL
     cDataM$Site = cData$Site[1]
     #bind together SPL data first... because issue with different data lengths
     m1 = merge(cDataM1, cDataM2Y, by = "Group.1" , all =T) 
     m1 = merge(m1, cDataM2N,      by = "Group.1" , all =T) 
     
-    cDataM   = cbind(cDataM$Site, cDataDys$Days, m1, cDataM2[,1:ncol(cDataM2)-1], cDataM3[,1:ncol(cDataM3)-1]) 
+    cDataM   = cbind(cDataM$Site, cDataDys$Days, m1, cDataM2[,1:ncol(cDataM2)-1], cDataM3[,1:ncol(cDataM3)-1], cDataMSD[,1:ncol(cDataMSD)-1]) 
   
     colnames(cDataM)[1] = "Site"
     colnames(cDataM)[2] = "Days"
@@ -1135,102 +1148,6 @@ for (ss in 1:length(sitesVD)  ) { #24:27  ss = 27
   }
  
   
-  #-----------------------------------------------------------------------------------------
-  #if SBO2== calculate values for 2020 data (output3)
-  #-----------------------------------------------------------------------------------------
-  if (sitesVD[ss] == "SB02") {
-   
-    cDatatKeep$YR = year(cDatatKeep$Day)
-    cData    = cDatatKeep[cDatatKeep$YR == 2020,]
-  
-    a0  = nrow( cData[!is.na(cData$OL_31.5),] ) #need to not count NA rows even though AIS data on all days, total days = length( unique(cDatat$Day) ), number of AIS days with data
-    aDR = ( c( as.character(min( cData$Day )), as.character(max( cData$Day ))) )
-    
-    #AIS averages (use all the data,  remove days without SPL??)
-    a1 = mean(as.numeric(as.character(cData$LOA_S_UV)),na.rm = T)
-    a2 = mean(as.numeric(as.character(cData$LOA_M_UV)),na.rm = T)
-    a3 = mean(as.numeric(as.character(cData$LOA_L_UV)) ,na.rm = T)
-    a4 = mean(as.numeric(as.character(cData$LOA_ALL_UV)),na.rm = T)
-    
-    a5 = mean(as.numeric(as.character(cData$LOA_S_OPHRS)),na.rm = T)
-    a6 = mean(as.numeric(as.character(cData$LOA_M_OPHRS)),na.rm = T)
-    a7 = mean(as.numeric(as.character(cData$LOA_L_OPHRS)),na.rm = T)
-    a8 = mean(as.numeric(as.character(cData$LOA_ALL_OPHRS)),na.rm = T)
-    
-    #percent of day OPHRS
-    a13 = mean(as.numeric(as.character( ((cData$LOA_S_OPHRS/24)*100))), na.rm = T) 
-    a14 = mean(as.numeric(as.character( ((cData$LOA_M_OPHRS/24)*100))), na.rm = T)
-    a15 = mean(as.numeric(as.character( ((cData$LOA_L_OPHRS/24)*100))), na.rm = T)
-    a16 = mean(as.numeric(as.character( ((cData$LOA_ALL_OPHRS/24)*100))), na.rm = T)
-    
-    #vessel detection averages-- new variables, not include the hourly summaries
-    #a12 = mean(as.numeric(as.character(cData$VesselDet_meanHourly_cnt)),na.rm = T)#average for average hourly vessel events per day-- not ideal!
-    a12 = mean(as.numeric(as.character(cData$TotalVesselDet_cnt)),na.rm = T) #average vessel events per day
-    a11 = mean(as.numeric(as.character(cData$PercentVessel_daily)),na.rm = T)     #average percent of day with vessel present
-    a9  = mean(as.numeric(as.character(cData$TimeVesselDet_sum)),na.rm = T)       #average total time with vessels per day
-    
-    #quiet metrics
-    a22  = mean(as.numeric(as.character(cData$TotalQuietPeriods_cnt)),na.rm = T)       #average quiet periods per day
-    a23  = mean(as.numeric(as.character(cData$PercentQuiet_daily)),na.rm = T)          #average percent of day with quiet
-    a24  = mean(as.numeric(as.character(cData$TimeQuiet_sum)),na.rm = T)               #average total time quiet
-    a25  = mean(as.numeric(as.character(cData$WeightQuietPeriods_daily)),na.rm = T)    #average weighted quiet periods- Prop of hour vessel free/count of events (higher numbers indicate more continuous vessel-free events) 
-    
-    #median SPLs
-    gg = c( as.numeric(grep("^OL", colnames(cData) ) ), 14)
-    tmpSPL = ( cData[,gg] )
-    w <- which( sapply( tmpSPL, class ) == 'factor' )
-    tmpSPL[w] <- lapply( tmpSPL[w], function(x) as.numeric(as.character(x)) )
-    SPLm = apply( tmpSPL, 2 , quantile , probs = 0.5 , na.rm = TRUE )
-    
-    SPLnames = colnames(tmpSPL)
-    
-    #median SPLs with NO or YES vessels present from hourly data
-    #remove rows with no SPL data, so not included in the proportion of hours!
-    FullListTimes2narm = FullListTimes2[! is.na(FullListTimes2$OL_31.5),] 
-    FullListTimes2narm$Yr = year(FullListTimes2narm$DateTime)
-    FullListTimes2narm    = FullListTimes2narm[FullListTimes2narm$Yr == 2020,]
-    
-    SPLvesY = FullListTimes2narm[FullListTimes2narm$TotalVesselDet > 0,]
-    gg = c( as.numeric(grep("^OL", colnames(FullListTimes2narm) ) ), 15)
-    tmpSPL = ( SPLvesY[,gg] )
-    w <- which( sapply( tmpSPL, class ) == 'factor' )
-    tmpSPL[w] = lapply( tmpSPL[w], function(x) as.numeric(as.character(x)) )
-    SPLmVessY = apply( tmpSPL, 2 , quantile , probs = 0.5 , na.rm = TRUE )
-    a21 = nrow(SPLvesY)/nrow(FullListTimes2narm) #proportion of hours with no vessel detection
-    
-    SPLvesN = FullListTimes2narm[FullListTimes2narm$TotalVesselDet == 0,]
-    gg = c( as.numeric(grep("^OL", colnames(FullListTimes2narm) ) ), 15)
-    tmpSPL = ( SPLvesN[,gg] )
-    w <- which( sapply( tmpSPL, class ) == 'factor' )
-    tmpSPL[w] = lapply( tmpSPL[w], function(x) as.numeric(as.character(x)) )
-    SPLmVessN = apply( tmpSPL, 2 , quantile , probs = 0.5 , na.rm = TRUE )
-    a20 = nrow(SPLvesN)/nrow(FullListTimes2narm) #proportion of hours with no vessel detection
-    
-    SPLnamesN = sub("OL_", "NoVess_OL_",  SPLnames)
-    SPLnamesY = sub("OL_", "YesVess_OL_", SPLnames)
-    
-    #combine summaries for all data
-    tmpOUT = t(as.data.frame( c(cData$Site[1], as.character(aDR), length(sFiles), nFiles, a0, 
-                                a1,a2,a3,a4,a5,a6,a7,a8, 
-                                a13,a14,a15,a16, 
-                                a9, a11, a12, 
-                                a20, a21, 
-                                a22, a23, a24, a25, 
-                                SPLm, SPLmVessY, SPLmVessN ) ))
-    
-    colnames(tmpOUT) = c("Site","Start Day","End Day", "shipFiles", "SPLfiles", "TotalDays",
-                         "mAIS_S_UV", "mAIS_M_UV", "mAIS_L_UV", "mAIS_A_UV", "mAIS_S_OPHRS","mAIS_M_OPHRS","mAIS_L_OPHRS","mAIS_A_OPHRS",
-                         "mAIS_S_PerOPHRS","mAIS_M_PerOPHRS","mAIS_L_PerOPHRS","mAIS_A_PerOPHRS",
-                         "VesselDur_meanDaySec","Vessel_meanPercentDay","VesselDets_meanCnt",
-                         "NoVessel_PercentofDays","YesVessel_PercentofDays",
-                         "QuietPeriods_meanCnt","Quiet_meanPercentDay","QuietDur_meandDaySec","QuietPeriodWeighted",
-                         SPLnames, SPLnamesY, SPLnamesN)
-    
-    output3 = as.data.frame(output3,stringsAsFactors = FALSE)
-    output3 = rbind (output3, tmpOUT )
-    
-  }
-  
   # CLEAN UP
   rm(edH,pVes,pVESStime,pVESSvess, tmp, VESS, VESSfor, VESSforDay, x, 
      edB,ff,fnameOut,HrS,hrsSpan,idx,inFiles,inFilesB, vv,stH,DtimeMean,DtimeSum,DvessSum,DvessMean, HRsampled, pALL2)
@@ -1239,17 +1156,118 @@ for (ss in 1:length(sitesVD)  ) { #24:27  ss = 27
 
 #Write out files and copy to google sheets to compare results
 if(flagYear == TRUE ){
-  fnameOut =  paste0(outDir, "Summary2019_ver", DC, ".csv")  
+  fnameOut =  paste0(outDir, "SummaryALL_", yearflag, "_ver", DC, ".csv")  
   write.csv(output2,fnameOut) 
   
   fnameOut =  paste0(outDir, "SummaryALL_ver", DC, ".csv")  
   write.csv(output,fnameOut) 
   
-  fnameOut =  paste0(outDir, "Summary2020_ver", DC, ".csv")  
-  write.csv(output3,fnameOut) 
-  
-  fnameOut =  paste0(outDir, "Summary2019Month_ver", DC, ".csv")  
+  fnameOut =  paste0(outDir, "SummaryMTH_", yearflag, "_ver", DC, ".csv")  
   write.csv(output4,fnameOut) 
   
-  }
+}
 
+ggplot(output4, aes(as.factor(Mth), Site, fill=as.numeric(as.character(Days)) ) ) +
+  geom_tile()+
+  xlab("Month in 2019")+ 
+  scale_fill_gradient2(low="white", high="blue")+
+  theme( legend.title = element_blank() ) +
+  ggtitle(paste0("Days sampled ", yearflag))
+
+# #-----------------------------------------------------------------------------------------
+# #if SBO2== calculate values for 2020 data (output3)
+# #-----------------------------------------------------------------------------------------
+# if (sitesVD[ss] == "SB02") {
+#   
+#   cDatatKeep$YR = year(cDatatKeep$Day)
+#   cData    = cDatatKeep[cDatatKeep$YR == 2020,]
+#   
+#   a0  = nrow( cData[!is.na(cData$OL_31.5),] ) #need to not count NA rows even though AIS data on all days, total days = length( unique(cDatat$Day) ), number of AIS days with data
+#   aDR = ( c( as.character(min( cData$Day )), as.character(max( cData$Day ))) )
+#   
+#   #AIS averages (use all the data,  remove days without SPL??)
+#   a1 = mean(as.numeric(as.character(cData$LOA_S_UV)),na.rm = T)
+#   a2 = mean(as.numeric(as.character(cData$LOA_M_UV)),na.rm = T)
+#   a3 = mean(as.numeric(as.character(cData$LOA_L_UV)) ,na.rm = T)
+#   a4 = mean(as.numeric(as.character(cData$LOA_ALL_UV)),na.rm = T)
+#   
+#   a5 = mean(as.numeric(as.character(cData$LOA_S_OPHRS)),na.rm = T)
+#   a6 = mean(as.numeric(as.character(cData$LOA_M_OPHRS)),na.rm = T)
+#   a7 = mean(as.numeric(as.character(cData$LOA_L_OPHRS)),na.rm = T)
+#   a8 = mean(as.numeric(as.character(cData$LOA_ALL_OPHRS)),na.rm = T)
+#   
+#   #percent of day OPHRS
+#   a13 = mean(as.numeric(as.character( ((cData$LOA_S_OPHRS/24)*100))), na.rm = T) 
+#   a14 = mean(as.numeric(as.character( ((cData$LOA_M_OPHRS/24)*100))), na.rm = T)
+#   a15 = mean(as.numeric(as.character( ((cData$LOA_L_OPHRS/24)*100))), na.rm = T)
+#   a16 = mean(as.numeric(as.character( ((cData$LOA_ALL_OPHRS/24)*100))), na.rm = T)
+#   
+#   #vessel detection averages-- new variables, not include the hourly summaries
+#   #a12 = mean(as.numeric(as.character(cData$VesselDet_meanHourly_cnt)),na.rm = T)#average for average hourly vessel events per day-- not ideal!
+#   a12 = mean(as.numeric(as.character(cData$TotalVesselDet_cnt)),na.rm = T) #average vessel events per day
+#   a11 = mean(as.numeric(as.character(cData$PercentVessel_daily)),na.rm = T)     #average percent of day with vessel present
+#   a9  = mean(as.numeric(as.character(cData$TimeVesselDet_sum)),na.rm = T)       #average total time with vessels per day
+#   
+#   #quiet metrics
+#   a22  = mean(as.numeric(as.character(cData$TotalQuietPeriods_cnt)),na.rm = T)       #average quiet periods per day
+#   a23  = mean(as.numeric(as.character(cData$PercentQuiet_daily)),na.rm = T)          #average percent of day with quiet
+#   a24  = mean(as.numeric(as.character(cData$TimeQuiet_sum)),na.rm = T)               #average total time quiet
+#   a25  = mean(as.numeric(as.character(cData$WeightQuietPeriods_daily)),na.rm = T)    #average weighted quiet periods- Prop of hour vessel free/count of events (higher numbers indicate more continuous vessel-free events) 
+#   
+#   #median SPLs
+#   gg = c( as.numeric(grep("^OL", colnames(cData) ) ), 14)
+#   tmpSPL = ( cData[,gg] )
+#   w <- which( sapply( tmpSPL, class ) == 'factor' )
+#   tmpSPL[w] <- lapply( tmpSPL[w], function(x) as.numeric(as.character(x)) )
+#   SPLm = apply( tmpSPL, 2 , quantile , probs = 0.5 , na.rm = TRUE )
+#   
+#   SPLnames = colnames(tmpSPL)
+#   
+#   #median SPLs with NO or YES vessels present from hourly data
+#   #remove rows with no SPL data, so not included in the proportion of hours!
+#   FullListTimes2narm = FullListTimes2[! is.na(FullListTimes2$OL_31.5),] 
+#   FullListTimes2narm$Yr = year(FullListTimes2narm$DateTime)
+#   FullListTimes2narm    = FullListTimes2narm[FullListTimes2narm$Yr == 2020,]
+#   
+#   SPLvesY = FullListTimes2narm[FullListTimes2narm$TotalVesselDet > 0,]
+#   gg = c( as.numeric(grep("^OL", colnames(FullListTimes2narm) ) ), 15)
+#   tmpSPL = ( SPLvesY[,gg] )
+#   w <- which( sapply( tmpSPL, class ) == 'factor' )
+#   tmpSPL[w] = lapply( tmpSPL[w], function(x) as.numeric(as.character(x)) )
+#   SPLmVessY = apply( tmpSPL, 2 , quantile , probs = 0.5 , na.rm = TRUE )
+#   a21 = nrow(SPLvesY)/nrow(FullListTimes2narm) #proportion of hours with no vessel detection
+#   
+#   SPLvesN = FullListTimes2narm[FullListTimes2narm$TotalVesselDet == 0,]
+#   gg = c( as.numeric(grep("^OL", colnames(FullListTimes2narm) ) ), 15)
+#   tmpSPL = ( SPLvesN[,gg] )
+#   w <- which( sapply( tmpSPL, class ) == 'factor' )
+#   tmpSPL[w] = lapply( tmpSPL[w], function(x) as.numeric(as.character(x)) )
+#   SPLmVessN = apply( tmpSPL, 2 , quantile , probs = 0.5 , na.rm = TRUE )
+#   a20 = nrow(SPLvesN)/nrow(FullListTimes2narm) #proportion of hours with no vessel detection
+#   
+#   SPLnamesN = sub("OL_", "NoVess_OL_",  SPLnames)
+#   SPLnamesY = sub("OL_", "YesVess_OL_", SPLnames)
+#   
+#   #combine summaries for all data
+#   tmpOUT = t(as.data.frame( c(cData$Site[1], as.character(aDR), length(sFiles), nFiles, a0, 
+#                               a1,a2,a3,a4,a5,a6,a7,a8, 
+#                               a13,a14,a15,a16, 
+#                               a9, a11, a12, 
+#                               a20, a21, 
+#                               a22, a23, a24, a25, 
+#                               SPLm, SPLmVessY, SPLmVessN ) ))
+#   
+#   colnames(tmpOUT) = c("Site","Start Day","End Day", "shipFiles", "SPLfiles", "TotalDays",
+#                        "mAIS_S_UV", "mAIS_M_UV", "mAIS_L_UV", "mAIS_A_UV", "mAIS_S_OPHRS","mAIS_M_OPHRS","mAIS_L_OPHRS","mAIS_A_OPHRS",
+#                        "mAIS_S_PerOPHRS","mAIS_M_PerOPHRS","mAIS_L_PerOPHRS","mAIS_A_PerOPHRS",
+#                        "VesselDur_meanDaySec","Vessel_meanPercentDay","VesselDets_meanCnt",
+#                        "NoVessel_PercentofDays","YesVessel_PercentofDays",
+#                        "QuietPeriods_meanCnt","Quiet_meanPercentDay","QuietDur_meandDaySec","QuietPeriodWeighted",
+#                        SPLnames, SPLnamesY, SPLnamesN)
+#   
+#   output3 = as.data.frame(output3,stringsAsFactors = FALSE)
+#   output3 = rbind (output3, tmpOUT )
+# #   
+# # }
+# fnameOut =  paste0(outDir, "Summary2020_ver", DC, ".csv")  
+# write.csv(output3,fnameOut)

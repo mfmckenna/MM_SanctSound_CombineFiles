@@ -1,4 +1,5 @@
 # combine abiotic conditions with SanctSound 1_processVesselDetecionsAIS.R
+
 # CURRENTLY, ONLY WORKS FOR SB02!!!
 
 
@@ -10,133 +11,153 @@ library(ggplot2)
 library(data.table)
 library(gridExtra)
 library(suncalc)
+
+outDir = "E:\\RESEARCH\\SanctSound\\data2\\combineFiles2_Abiotic\\"
+inDir  = "E:\\RESEARCH\\SanctSound\\data2\\combineFiles1_SPLShips\\"
+tDir   = "E:\\RESEARCH\\SanctSound\\data\\"
+
 #-----------------------------------------------------------------------------------------
-# MAIN functions-- by site processing
+#INPUT AIS and Vessel Detection metrics (output of 1b_processVesselDetectionsAIS) 
+## DAILY DATA
 #-----------------------------------------------------------------------------------------
-#INPUT a per site .csv file: 
-tDir = "E:\\RESEARCH\\SanctSound\\data2\\"
-inDir =  paste0(tDir,"combineFiles1_SPLShips")
-outDir = paste0(tDir,"combineFiles2_Abiotic")
+site = "SB02"
+sant = "SB"
+#INPUT a per site .csv file... 
+infile = list.files(inDir, pattern = paste0(site,"_SPLVesselDetectionsAIS_Day"), full.names = T) #choose.files()
+output4 = read.csv(infile)
+as.data.frame(colnames(output4))
+SplVes = output4[output4$Site == "SB02", ]
+SplVes$Day   = as.Date(SplVes$Day, format = "%Y-%m-%d")
 
-inDay = list.files(inDir,"_Day_",full.names = T)
-inHr  = list.files(inDir,"Hr_",full.names = T)
-
-#start a loop here!!!
-ii = 22
-cat("Processing...", basename( inHr[ii]) )
-ifile = inHr[ii]
-idataH = read.csv(ifile)
-ifile = inDay[ii]
-idataD = read.csv(ifile)
-
-#check date range
-min(as.Date(idataH$Day))
-max(as.Date(idataH$Day))
-dcolH=as.data.frame(colnames(idataH))
-dcolH
-dcolD=as.data.frame(colnames(idataD))
-dcolD
-site = substr( idataH$Site[1],1,2) 
-
-cat("Processing...", site, ":", basename( inHr[ii]) )
-
-#format data
-SplAis = idataH
-head(SplAis)
+SplVes = SplVes %>% mutate_if(is.factor,as.character)
 
 #-----------------------------------------------------------------------------------------
 #read in abiotic data for the sanctuary
 #-----------------------------------------------------------------------------------------
 #location
 #-----------------------------------------------------------------------------------------
-dirAb = paste0(tDir,"abioticFiles\\")
-siteLoc = read.csv(paste0(dirAb, "LocationSummary.csv"))
-sLoc    = siteLoc[as.character(siteLoc$Site) == as.character(idataH$Site[1]),]
+siteLoc = read.csv(paste0(tDir, "SiteLocations.csv"))
+sLoc    = siteLoc[as.character(siteLoc$Site) == as.character(site),1:3]
 
 #tide
 #-----------------------------------------------------------------------------------------
+dirAb = paste0(tDir,sant)
 setwd(dirAb)
-multmerge = function(path){
-  filenames = intersect(list.files(dirAb,pattern = site), 
-                        list.files(dirAb,pattern = "^CO-OPS"))
-  rbindlist(lapply(filenames, fread))
+
+filenames = list.files(dirAb,pattern = "^CO-OPS")
+TIDE = NULL
+for (ff in 1:length(filenames)) {
+  TIDE = rbind(TIDE, read.csv(filenames[ff]))
 }
-#filenames = intersect(list.files(dirAb,pattern = site), list.files("E:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = "^CO-OPS"))
-TIDE <- multmerge(dirAb)
+#formate data
 TIDE$DateFday = as.Date(TIDE$Date ,format = "%Y/%m/%d")
 TIDE$DateF    = as.POSIXct( paste(TIDE$DateFday, paste(TIDE$`Time (GMT)`,":00", sep = ""), sep=" "), tz = "GMT")
-TIDE$changeWL = c("NA", diff(TIDE$`Verified (ft)`))
+TIDE$changeWL = c("NA", diff(TIDE$Verified..ft.) )
+TIDE$changeWL = as.numeric (as.character(TIDE$changeWL))
+
 #Data check plot
 pTide = ggplot(TIDE, aes(DateFday, as.numeric(as.character(changeWL)) ) )+
   geom_point() +
   xlab("")+
   ylab("Hourly change in water level") +
   theme_minimal()+ggtitle(paste("Check- TIDE(",site, ")"))
-#pTide
+pTide
+
+#aggregate by day
+uday = unique(TIDE$DateFday)
+TIDEday = NULL
+for (dd in 1:length(uday))
+{
+  tmp = TIDE[TIDE$DateFday== uday[dd],] 
+  tmp = tmp[complete.cases(tmp),]
+  TIDEday = rbind(TIDEday, c(as.character(uday[dd]), mean(tmp$changeWL), sd(tmp$changeWL), nrow(tmp) ) )
+  
+}
+TIDEday = as.data.frame(TIDEday)
+colnames(TIDEday) = c("Day","avgWL","sdWL","nSamples")
+TIDEday$Day   = as.Date(TIDEday$Day, format = "%Y-%m-%d")
+TIDEday = TIDEday %>% mutate_if(is.factor,as.character)
+TIDEday = TIDEday %>% mutate_if(is.character,as.numeric)
 
 #wind
 #-----------------------------------------------------------------------------------------
-multmerge = function(path){
-  filenames = intersect(list.files(dirAb,pattern = site), 
-                        list.files(dirAb,pattern = "MetA"))
-  rbindlist(lapply(filenames, fread))
+filenames = list.files(dirAb,pattern = "MetData")
+WSPD = NULL
+for (ff in 1: length (filenames)){
+  tfile = paste0(dirAb, "\\", filenames[ff])
+  tmp   = fread(tfile)
+  tmp2   = tmp[2:nrow(tmp),1:7]
+  WSPD   = rbind(WSPD,tmp2)
 }
-#filenames = intersect(list.files("E:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = site), list.files("E:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = "^CO-OPS"))
-WSPD <- multmerge(dirAb)
-# wFiles = intersect(list.files("E:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = site), list.files("E:\\RESEARCH\\SanctSound\\data2\\abioticFiles",pattern = "MetA"))
-# head( read.csv( wFiles[1] )) 
-# head( read.csv( wFiles[2] )) 
-# head( read.csv( wFiles[3] )) 
 endR = nrow(WSPD)
 WSPD = as.data.frame(WSPD[2:endR,])
-#head( WSPD )
+
+#formate data
 WSPD$DateC    =  ( paste( WSPD$`#YY`, "-", WSPD$MM, "-", WSPD$DD, " ", WSPD$hh, ":",  WSPD$mm , sep = ""))
 WSPD$DateF = as.POSIXct(WSPD$DateC,"%Y-%m-%d %H:%M",tz ="GMT")
 WSPD$WSPD  = as.numeric(as.character(WSPD$WSPD  )) #some days with NAs which( is.na(WSPD$WSPD)) = 9
 max(WSPD$WSPD,na.rm= T) 
-#na_if(WSPD$WSPD, 99) 
-#need to remove 99!!!
 WSPD$WSPD[WSPD$WSPD == 99] = NA
+plot
+
 pWind = ggplot(WSPD, aes(DateF, WSPD ) )+
   geom_point() +
   xlab("")+
   ylab("Wind Speed (mps) ") +
   theme_minimal()+ggtitle(paste("Check- WIND (",site, ")"))
-# pWind
+pWind
 
+#format data
 WSPD$Day   = as.Date(WSPD$DateF, format = "%Y-%m-%d")
 WSPD$HR    = strftime(WSPD$DateF, format="%H") #hour(WSPD$DateF)
 WSPD$DayHR = as.POSIXct( paste0(WSPD$Day," ", WSPD$HR,":00:00") ,format = "%Y-%m-%d %H:%M:%S", tz = "GMT")
 WSPDavg = aggregate(WSPD$WSPD, by=list(WSPD$DayHR), mean)
 colnames(WSPDavg) = c("DateF","avgWSPD")
 
+#aggregate by day
+uday = unique(WSPD$Day)
+WSPDday = NULL
+cutOff = 5.1
+for (dd in 1:length(uday))
+{
+  tmp = WSPD[WSPD$Day== uday[dd],] 
+  tmp = tmp[complete.cases(tmp),]
+  WSPDday = rbind(WSPDday, c(as.character(uday[dd]), mean(tmp$WSPD, na.action = na.omit), sd(tmp$WSPD), nrow(tmp), nrow(tmp[tmp$WSPD>cutOff, ])/nrow(tmp) ) )
+  
+}
+WSPDday = as.data.frame(WSPDday)
+colnames(WSPDday) = c("Day","avgWSPDL","sdWSPD","nSamples","TimeAbove")
+WSPDday$Day   = as.Date(WSPDday$Day, format = "%Y-%m-%d")
+WSPDday = WSPDday %>% mutate_if(is.factor,as.character)
+WSPDday = WSPDday %>% mutate_if(is.character,as.numeric)
+
+
 #-----------------------------------------------------------------------------------------
-#COMBINE SUN ALTITUDE, WIND and TIDE
+#COMBINE WIND and TIDE-- daily time scale
 #-----------------------------------------------------------------------------------------
-#matches the hourly windspeed with SPL values
-SplAis$DateF = as.POSIXct(   SplAis$DateTime, tz = "GMT")
-SplAisWspd     = merge(SplAis, WSPDavg,  all = FALSE, all.x = TRUE, by = "DateF" )#mean at the top of the hour
-# check:  WSPDavg[10000,] , SplAisWspd[SplAisWspd$DateF == WSPDavg[10000,1],]
+SplVesWspd         = merge(SplVes, WSPDday,      all = FALSE, all.x = TRUE, by = "Day" )#mean at the top of the hour
+SplVesWspdTide     = merge(SplVesWspd, TIDEday,  all = FALSE, all.x = TRUE, by = "Day" )#mean at the top of the hour
+
 
 #SUN ALTITUDE-- append to wind
-tmp = getSunlightPosition(SplAisWspd$DateF ,sLoc$lat,sLoc$Lon)
-SplAisWspd$sunAlt = tmp$altitude
-SplAisWspdTide = merge(SplAisWspd, TIDE, all = FALSE, all.x = TRUE, by = "DateF" )
+tmp = getSunlightPosition(SplVesWspdTide$Day ,sLoc$lat, sLoc$lon)
+SplVesWspdTide$sunAlt = tmp$altitude
 
-rm(WSPD,WSPDavg,TIDE,AIS)
 
-setwd(outDir)
+setwd(dirAb)
 DC = Sys.Date()
-SplAisWspd$Site[1]
-fnameAll =     paste0(SplAisWspdTide$Site[1], "_CombinedData_SPLShipsAbiotic_HR_",as.character(min(as.Date(SplAisWspdTide$Day))),"_",
-                      as.character(max(as.Date(SplAisWspdTide$Day))), "_v", DC, ".csv")  
-write.csv(SplAisWspdTide,fnameAll) 
-dcol = as.data.frame(colnames(SplAisWspdTide))
+SplVesWspdTide$Site[1]
+fnameAll =     paste0(SplVesWspdTide$Site[1], "_CombinedData_SplVesAbiotic_Day_",as.character(min(as.Date(SplVesWspdTide$Day))),"to",
+                      as.character(max(as.Date(SplVesWspdTide$Day))), "_ver", DC, ".csv")  
+write.csv(SplVesWspdTide,fnameAll) 
+setwd(outDir)
+write.csv(SplVesWspdTide,fnameAll) 
+dcol = as.data.frame(colnames(SplVesWspdTide))
 
 dcol
 
 #-----------------------------------------------------------------------------------------
-# EXTRA: DATA EXPLORATION-- SB02
+# EXTRA: DATA EXPLORATION-- SB02 (MIGHT NOT WORK BECAUSE ABOVE CODE CHANGED!)
 #-----------------------------------------------------------------------------------------
 #March 25-31 201 Vs 2020 julian day 83-90
 #WIND SPEED

@@ -12,29 +12,21 @@ library(data.table)
 library(gridExtra)
 
 #-----------------------------------------------------------------------------------------
-tDir   = "E:\\RESEARCH\\SanctSound\\data\\"
-inDir  = paste0(tDir, "data2\\combineFiles2_Abiotic")
-outDir = paste0(tDir, "data2\\combineFiles3_Detections")
+tDir   = "E:\\RESEARCH\\SanctSound\\"
+inDir  = paste0(tDir, "data2\\combineFiles2_Abiotic\\")
+outDir = paste0(tDir, "data2\\combineFiles3_Detections\\")
 
 #-----------------------------------------------------------------------------------------
-#hourly files
 sanct = "SB"
 site  = "SB02"
-inHr  = list.files(inDir,sanct,full.names = T)
-iData = read.csv(inHr[1])
-iData$DateF = as.POSIXct (iData$DateF,tz = "GMT")
-as.data.frame( colnames(iData) )
-summary(iData)
 
-#Daily files (from previous steps)
-inDay = list.files( inDir2, "_Day_", full.names = T)
-ii = 22
-cat("Processing...", basename( inDay[ii]) )
-ifile = inDay[ii]
-idataD = read.csv(ifile)
-numDays = unique(idataD$Day)
-as.data.frame( colnames(idataD) )
-summary(idataD)
+inFile  = list.files(inDir, pattern = paste0(site,"_CombinedData_SplVesAbiotic_Day"), full.names = T) #choose.files()
+iData = read.csv(inFile)
+iData$Day   = as.Date(iData$Day, format = "%Y-%m-%d")
+as.data.frame( colnames(iData) )
+iData = iData %>% mutate_if(is.factor,as.character)
+# summary(iData)
+
 
 #-----------------------------------------------------------------------------------------
 #Biological Detections
@@ -45,6 +37,8 @@ dir2  = paste0(tDir, "data\\",sanct,"\\",site)
 #ATLANTIC COD-- start and end times, need to convert to daily detections
 #-----------------------------------------------------------------------------------------
 nFiles = length( list.files(path=dir2, pattern = "atlanticcod", full.names=TRUE, recursive = TRUE))
+
+#read in detection files
 atlanticcod = NULL
 for (ff in 1 : nFiles){
   fname  = list.files(path=dir2, pattern = "atlanticcod", full.names=FALSE, recursive = TRUE)[ff]
@@ -62,24 +56,31 @@ atlanticcod$DateFs   = as.POSIXct( gsub(".000Z", "", gsub("T", " ", atlanticcod$
 atlanticcod$DateFe   = as.POSIXct( gsub(".000Z", "", gsub("T", " ", atlanticcod$End_datetime_ISO6801))  , tz = "GMT" )
 atlanticcod$DUR_mins = atlanticcod$DateFe- atlanticcod$DateFs #in minutes!
 atlanticcod$DayHR    = as.POSIXct( paste0(as.Date( atlanticcod$DateFs )," ", hour( atlanticcod$DateFs ),":00:00") ,format = "%Y-%m-%d %H:%M:%S", tz = "GMT")
-atlanticcod$DateDay  = as.Date( atlanticcod$DateFs )
-#combine with hourly data- start of the detection in specific hour
+atlanticcod$Day  = as.Date( atlanticcod$DateFs )
+
+#combine with daily data- is start of the detection in specific day
 iData$atlanticcod = 0
 for(ii in 1:nrow(iData)){
-  tdet = nrow( atlanticcod[atlanticcod$DayHR== iData$DateF[ii], ])
-  if (tdet>0){iData$atlanticcod[ii] =  tdet}
-} #plot(iData$atlanticcod )
-#convert to daily detections
-udays = unique(atlanticcod$DateDay)
-atlanticcodD = NULL
-for(dd in 1:length(udays)){
-  tmp = atlanticcod[ atlanticcod$DateDay == udays[dd],]
-  atlanticcodD = rbind(atlanticcodD, c(as.character(udays[dd]),nrow(tmp) ) )
+  tdet = nrow( atlanticcod[atlanticcod$Day  == iData$Day[ii], ])
+  if (tdet>0){ iData$atlanticcod[ii] =  tdet }
+} 
+plot(iData$atlanticcod )
+idx = which(names(iData) == "atlanticcod")
+names(iData)[idx] = "atlanticcodDet"
+
+#convert to presence
+for(ii in 1:nrow(iData)){
+  tdet = iData$atlanticcodDet[ii]
+  
+  if (tdet > 0) {
+    iData$atlanticcodP[ii] = 1
+  } else if (tdet == 0) {
+    iData$atlanticcodP[ii] = 0
+  } else { 
+    iData$atlanticcodP[ii] = NA
+  }
 }
-colnames(atlanticcodD) = c("DateFs","atlanticcodDetDay")
-atlanticcodD = as.data.frame(atlanticcodD)
-atlanticcodD$DateFs = as.Date(atlanticcodD$DateFs)
-atlanticcodD$atlanticcodDetDay = as.numeric( as.character( (atlanticcodD$atlanticcodDetDay) ) )
+plot(iData$atlanticcodP )
 
 #DOLPHINS-- hourly presence/absence [0 or 1]
 #-----------------------------------------------------------------------------------------
@@ -91,26 +92,33 @@ dolphins = ( multmerge(dir2) ) # unique(dolphins$Presence)
 dolphins = as.data.frame(dolphins)
 dolphins$DateFs  = as.POSIXct( gsub(".000Z", "", gsub("T", " ", dolphins$ISOStartTime)), tz = "GMT" )
 dolphins$DayHR   = as.POSIXct( paste0(as.Date( dolphins$DateFs )," ", hour( dolphins$DateFs ),":00:00") ,format = "%Y-%m-%d %H:%M:%S", tz = "GMT")
-dolphins$DateDay = as.Date( dolphins$DateFs )
-names(dolphins)[2] = "dolphinsP" 
-dolphins  = dolphins[!is.na(dolphins$DateFs),]
+dolphins$Day = as.Date( dolphins$DateFs )
+names(dolphins)[2] = "dolphins" 
+dolphins  = dolphins[!is.na(dolphins$Day),]
 iData$dolphins = 0
 for(ii in 1:nrow(iData)){
-  tdet = nrow( dolphins[dolphins$DayHR== iData$DateF[ii], ])
+  tdet = nrow( dolphins[dolphins$Day == iData$Day[ii], ])
   if (tdet>0){iData$dolphins[ii] =  tdet}
-}# plot(iData$dolphins )
-#convert to daily detections
-udays = unique(dolphins$DateDay)
-dolphinsD = NULL
-for(dd in 1:length(udays)){
-  tmp = dolphins[ dolphins$DateDay == udays[dd],]
-  dolphinsD = rbind(dolphinsD, c(as.character(udays[dd]),nrow(tmp),sum(tmp$dolphinsP)))
+} 
+
+plot(iData$dolphins )
+idx = which(names(iData) == "dolphins")
+names(iData)[idx] = "dolphinsDet"
+
+#convert to presence
+for(ii in 1:nrow(iData)){
+  tdet = iData$dolphinsDet[ii]
+  
+  if (tdet > 0) {
+    iData$dolphinsP[ii] = 1
+  } else if (tdet == 0) {
+    iData$dolphinsP[ii] = 0
+  } else { 
+    iData$dolphinsP[ii] = NA
+  }
 }
-colnames(dolphinsD) = c("DateFs","DolphinHrs","dolphinsDetDay")
-dolphinsD = as.data.frame(dolphinsD)
-dolphinsD$DateFs = as.Date(dolphinsD$DateFs)
-dolphinsD$DolphinHrs = as.numeric( as.character(dolphinsD$DolphinHrs) )
-dolphinsD$dolphinsDetDay = as.numeric( as.character( (dolphinsD$dolphinsDetDay) ) )
+plot(iData$dolphinsP )
+
 
 #BLUE WHALE-- presence in a given day [0 or 1]
 #-----------------------------------------------------------------------------------------
@@ -133,11 +141,30 @@ for (ff in 1 : nFiles){
 }
 colnames(bluewhale)= c( as.character(bluewhale[1,1:3]))
 bluewhale = bluewhale[bluewhale$Presence != "Presence",] #remove headers in the data frame
-bluewhale$DateFs   = as.Date( bluewhale$ISOStartTime,tz="GMT")
+bluewhale$Day   = as.Date( bluewhale$ISOStartTime,tz="GMT")
 names(bluewhale)[2] = "bluewhaleP" 
 names(bluewhale)[3] = "Site"
-bluewhale = bluewhale[!is.na(bluewhale$DateFs),]
+bluewhale = bluewhale[!is.na(bluewhale$Day),]
 bluewhale = bluewhale[!duplicated(bluewhale)]
+
+for(ii in 1:nrow(iData)){
+  tdet =  bluewhale[bluewhale$Day == iData$Day[ii], ]
+  if (nrow(tdet) > 0) {
+    if (tdet$bluewhaleP > 0) {
+      iData$bluewhale[ii] = tdet$bluewhaleP
+    }else {
+      iData$bluewhale[ii] = 0
+      }
+      
+  }else {
+    iData$bluewhale[ii] = NA
+  }
+  
+}
+plot(bluewhale$bluewhaleP )
+plot(iData$bluewhale )
+idx = which(names(iData) == "bluewhale")
+names(iData)[idx] = "bluewhaleP"
 
 #FIN WHALE-- presence in a given day [0 or 1]
 #-----------------------------------------------------------------------------------------
@@ -159,14 +186,34 @@ for (ff in 1 : nFiles){
 colnames(finwhale)= c( as.character(finwhale[1,1:3]) )
 finwhale = finwhale[finwhale$Presence != "Presence",] #remove headers in the data frame
 finwhale = finwhale[finwhale$ISOStartTime != "",] #remove headers in the data frame
-finwhale$DateFs   = as.Date( finwhale$ISOStartTim,tz="GMT")
+finwhale$Day   = as.Date( finwhale$ISOStartTim,tz="GMT")
 names(finwhale)[2] = "finwhaleP" 
 names(finwhale)[3] = "Site" 
-finwhale = finwhale[!is.na(finwhale$DateFs),]
+finwhale = finwhale[!is.na(finwhale$Day),]
 finwhale = finwhale[!duplicated(finwhale)]
 #still duplicated entries...- between deployment, keep the presence = 1
 finwhale$finwhaleP[duplicated(finwhale$ISOStartTime) ] = 1
 finwhale = finwhale[!duplicated(finwhale)]
+
+for(ii in 1:nrow(iData)){
+  tdet =  finwhale[finwhale$Day == iData$Day[ii], ]
+  if (nrow(tdet) > 0) {
+    if (tdet$finwhaleP > 0) {
+      iData$finwhale[ii] = tdet$finwhaleP
+    }else {
+      iData$finwhale[ii] = 0
+    }
+    
+  }else {
+    iData$finwhale[ii] = NA
+  }
+  
+}
+
+plot(finwhale$finwhaleP )
+plot(iData$finwhale )
+idx = which(names(iData) == "finwhale")
+names(iData)[idx] = "finwhaleP"
 
 #HUMPBACK WHALE-- presence in a given day [0 or 1]
 #-----------------------------------------------------------------------------------------
@@ -189,14 +236,33 @@ for (ff in 1 : nFiles){
 colnames(humpbackwhale)= c( as.character(humpbackwhale[1,1:3]) )
 humpbackwhale = humpbackwhale[humpbackwhale$Presence != "Presence",] #remove headers in the data frame
 humpbackwhale = humpbackwhale[humpbackwhale$ISOStartTime != "",] #remove headers in the data frame
-humpbackwhale$DateFs   = as.Date( humpbackwhale$ISOStartTim,tz="GMT")
+humpbackwhale$Day   = as.Date( humpbackwhale$ISOStartTim,tz="GMT")
 names(humpbackwhale)[2] = "humpbackwhaleP" 
 names(humpbackwhale)[3] = "Site" 
-humpbackwhale = humpbackwhale[!is.na(humpbackwhale$DateFs),]
+humpbackwhale = humpbackwhale[!is.na(humpbackwhale$Day),]
 humpbackwhale = humpbackwhale[!duplicated(humpbackwhale)]
 dIdx = humpbackwhale$ISOStartTime[duplicated(humpbackwhale$ISOStartTime) ] 
 for (dd in 1 :length(dIdx)) {humpbackwhale$humpbackwhaleP[ humpbackwhale$ISOStartTime == dIdx[dd]] = 1}
 humpbackwhale = humpbackwhale[!duplicated(humpbackwhale)]
+
+for(ii in 1:nrow(iData)){
+  tdet =  humpbackwhale[humpbackwhale$Day == iData$Day[ii], ]
+  if (nrow(tdet) > 0) {
+    if (tdet$humpbackwhaleP > 0) {
+      iData$humpbackwhale[ii] = tdet$humpbackwhaleP
+    }else {
+      iData$humpbackwhale[ii] = 0
+    }
+    
+  }else {
+    iData$humpbackwhale[ii] = NA
+  }
+  
+}
+idx = which(names(iData) == "humpbackwhale")
+plot(humpbackwhale$humpbackwhaleP , main = names(iData)[idx])
+plot(iData$humpbackwhale,main = names(iData)[idx] )
+names(iData)[idx] = "humpbackwhaleP"
 
 #NORTH ATLANTIC RIGHT WHALE-- presence in a given day [0 or 1]
 #-----------------------------------------------------------------------------------------
@@ -218,14 +284,33 @@ for (ff in 1 : nFiles){
 colnames(northatlanticrightwhale)= c( as.character(northatlanticrightwhale[1,1:3]) )
 northatlanticrightwhale = northatlanticrightwhale[northatlanticrightwhale$Presence != "Presence",] #remove headers in the data frame
 northatlanticrightwhale = northatlanticrightwhale[northatlanticrightwhale$ISOStartTime != "",] #remove headers in the data frame
-northatlanticrightwhale$DateFs   = as.Date( northatlanticrightwhale$ISOStartTim,tz="GMT")
+northatlanticrightwhale$Day   = as.Date( northatlanticrightwhale$ISOStartTim,tz="GMT")
 names(northatlanticrightwhale)[2] = "northatlanticrightwhaleP" 
 names(northatlanticrightwhale)[3] = "Site" 
-northatlanticrightwhale = northatlanticrightwhale[!is.na(northatlanticrightwhale$DateFs),]
+northatlanticrightwhale = northatlanticrightwhale[!is.na(northatlanticrightwhale$Day),]
 northatlanticrightwhale = northatlanticrightwhale[!duplicated(northatlanticrightwhale)]
 dIdx = northatlanticrightwhale$ISOStartTime[duplicated(northatlanticrightwhale$ISOStartTime) ] 
 for (dd in 1 :length(dIdx)) {northatlanticrightwhale$northatlanticrightwhaleP[ northatlanticrightwhale$ISOStartTime == dIdx[dd]] = 1}
 northatlanticrightwhale = northatlanticrightwhale[!duplicated(northatlanticrightwhale)]
+
+for(ii in 1:nrow(iData)){
+  tdet =  northatlanticrightwhale[northatlanticrightwhale$Day == iData$Day[ii], ]
+  if (nrow(tdet) > 0) {
+    if (tdet$northatlanticrightwhaleP > 0) {
+      iData$northatlanticrightwhale[ii] = tdet$northatlanticrightwhaleP
+    }else {
+      iData$northatlanticrightwhale[ii] = 0
+    }
+    
+  }else {
+    iData$northatlanticrightwhale[ii] = NA
+  }
+  
+}
+idx = which(names(iData) == "northatlanticrightwhale")
+plot(northatlanticrightwhale$northatlanticrightwhaleP , main = names(iData)[idx])
+plot(iData$northatlanticrightwhale,main = names(iData)[idx] )
+names(iData)[idx] = "northatlanticrightwhaleP"
 
 #SEI WHALE-- presence in a given day [0 or 1]
 #-----------------------------------------------------------------------------------------
@@ -247,15 +332,106 @@ for (ff in 1 : nFiles){
 colnames(seiwhale)= c( as.character(seiwhale[1,1:3]) )
 seiwhale = seiwhale[seiwhale$Presence != "Presence",] #remove headers in the data frame
 seiwhale = seiwhale[seiwhale$ISOStartTime != "",] #remove headers in the data frame
-seiwhale$DateFs   = as.Date( seiwhale$ISOStartTim,tz="GMT")
+seiwhale$Day   = as.Date( seiwhale$ISOStartTim,tz="GMT")
 names(seiwhale)[2] = "seiwhaleP" 
 names(seiwhale)[3] = "Site" 
-seiwhale = seiwhale[!is.na(seiwhale$DateFs),]
+seiwhale = seiwhale[!is.na(seiwhale$Day),]
 seiwhale = seiwhale[!duplicated(seiwhale)]
 dIdx = seiwhale$ISOStartTime[duplicated(seiwhale$ISOStartTime) ] 
 for (dd in 1 :length(dIdx)) {seiwhale$seiwhaleP[ seiwhale$ISOStartTime == dIdx[dd]] = 1}
 seiwhale = seiwhale[!duplicated(seiwhale)]
 
+for(ii in 1:nrow(iData)){
+  tdet =  seiwhale[seiwhale$Day == iData$Day[ii], ]
+  if (nrow(tdet) > 0) {
+    if (tdet$seiwhaleP > 0) {
+      iData$seiwhale[ii] = tdet$seiwhaleP
+    }else {
+      iData$seiwhale[ii] = 0
+    }
+    
+  }else {
+    iData$seiwhale[ii] = NA
+  }
+  
+}
+idx = which(names(iData) == "seiwhale")
+plot(seiwhale$seiwhaleP , main = names(iData)[idx])
+plot(iData$seiwhale,main = names(iData)[idx] )
+names(iData)[idx] = "seiwhaleP"
+
+
+#-----------------------------------------------------------------------------------------
+# PLOTS OF SOURCES... used 4_combineFiles_plots_SB02. R code
+#-----------------------------------------------------------------------------------------
+#TILE PLOT of all sources present...
+as.data.frame(colnames(iData))
+#biological
+BioAllomelt = reshape :: melt(iData, id.vars = "Day", 
+                              measure.vars = c("bluewhaleP","finwhaleP","humpbackwhaleP",
+                                               "northatlanticrightwhaleP","seiwhaleP", 
+                                               "dolphinsP","atlanticcodP", ))
+BioAllomelt$value = as.numeric(as.character(BioAllomelt$value) )
+pBio = ggplot(BioAllomelt, aes(Day, variable, fill= (value))) + 
+  geom_tile() +
+  scale_fill_gradient(low="white", high="blue") +
+  labs(title = paste0(site,": summary of detections"),  fill = "") +
+  xlab("") +
+  ylab("")+
+  geom_vline(xintercept=as.Date("2019-01-01"), linetype="dashed", 
+             color = "gray", size=1)+ 
+  geom_vline(xintercept=as.Date("2020-01-01"), linetype="dashed", 
+             color = "gray", size=1)+ 
+  geom_vline(xintercept=as.Date("2021-01-01"), linetype="dashed", 
+             color = "gray", size=1)+ 
+  theme(legend.position = "none")+
+  theme_minimal()
+
+#vessels
+VessAllomelt = reshape :: melt(iData, id.vars = "Day", 
+                              measure.vars = c("LOA_ALL_UV","TotalVesselDet_cnt"))
+VessAllomelt$value = as.numeric(as.character(VessAllomelt$value) )
+pVes = ggplot(VessAllomelt, aes(Day, variable, fill= (value))) + 
+  geom_tile() +
+  scale_fill_gradient(low="white", high="blue") +
+  labs(title = paste0(site,": summary of detections"),  fill = "") +
+  xlab("") +
+  ylab("")+
+  geom_vline(xintercept=as.Date("2019-01-01"), linetype="dashed", 
+             color = "gray", size=1)+ 
+  geom_vline(xintercept=as.Date("2020-01-01"), linetype="dashed", 
+             color = "gray", size=1)+ 
+  geom_vline(xintercept=as.Date("2021-01-01"), linetype="dashed", 
+             color = "gray", size=1)+ 
+  theme(legend.position = "none")+
+  theme_minimal()
+
+#abiotic
+pwind = ggplot(tmp, aes(as.factor(JulianDay), meanWSPD, group=as.factor(Yr), color = as.factor(Yr))) +
+  geom_line() +   geom_point() +
+  xlab("Julian Day")+  ylab("Wind Speed (mps) ") +
+  theme_minimal()+ theme(legend.position = "none")
+
+ptide = ggplot(tmp, aes(as.factor(JulianDay), maxTide, group=as.factor(Yr), color = as.factor(Yr))) +
+  geom_line() +
+  geom_point() +
+  xlab("")+  ylab("Max tide change ") +
+  theme_minimal()+
+  theme(legend.position = "none")
+
+#sound levels
+p125 = ggplot(tmp, aes(as.factor(JulianDay), OL_250, group=as.factor(Yr), color = as.factor(Yr))) +
+  geom_line() +
+  geom_point() +
+  xlab("")+  ylab("Ol_125 ") +
+  theme_minimal()+
+  theme(legend.position = "none")
+
+
+
+
+
+#previous version for combining data.... not relevent to this version!!
 #-----------------------------------------------------------------------------------------
 # MERGE all the biologics into one matrix
 #-----------------------------------------------------------------------------------------
