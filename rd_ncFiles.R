@@ -9,10 +9,32 @@ library(gridExtra)
 
 rm(list=ls())
 
-dirSPL   = list.dirs( "D:\\RESEARCH\\SanctSound\\data\\SPL") #dirSPL = dirs[ grepl("data", dirs) ]
+dirSPL   = setwd( "E:\\RESEARCH\\SanctSound\\") #dirSPL = dirs[ grepl("data", dirs) ]
 list.files(dirSPL)
 
-SPL_OL = list.files(dirSPL, pattern = "_OL" ,full.names = TRUE)
+ncFiles= list.files(dirSPL, pattern = "ships.nc" ,full.names = TRUE)
+
+#test a file
+r = nc_open(ncFiles[1]) 
+r$var$time_stamp$longname
+
+tm  <- ncvar_get(r, "time_stamp")
+tmF = as.POSIXct ( gsub(":000Z","", gsub("T", " ", tm)), tz="GMT" )
+
+tb  <- ncvar_get(r, "time_bounds")/1000
+tb/1000
+options(scipen =999)
+r$var$time_bounds$units
+
+#rows are stare/end, columns 
+nrow(tb)
+ncol(tb)
+as.POSIXct(tb[1,1], origin = "1970-01-01", tz = "GMT")  #"50921-04-26 19:03:20 GMT"
+#remove last three zeros
+tedit = substr( as.character(tb[1,1]), 1, nchar(as.character(tb[1,1]))-3 ) 
+as.POSIXct(as.numeric(tedit), origin = "1970-01-01", tz = "GMT")  #"2018-12-14 02:26:35 GMT"
+
+
 info = NULL
 infoT = NULL
 quants <- c(.01,0.25,0.50,0.75,0.99)

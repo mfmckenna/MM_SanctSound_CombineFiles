@@ -364,18 +364,21 @@ names(iData)[idx] = "seiwhaleP"
 #-----------------------------------------------------------------------------------------
 # PLOTS OF SOURCES... used 4_combineFiles_plots_SB02. R code
 #-----------------------------------------------------------------------------------------
+
 #TILE PLOT of all sources present...
+#-----------------------------------------------------------------------------------------
 as.data.frame(colnames(iData))
+
 #biological
 BioAllomelt = reshape :: melt(iData, id.vars = "Day", 
                               measure.vars = c("bluewhaleP","finwhaleP","humpbackwhaleP",
                                                "northatlanticrightwhaleP","seiwhaleP", 
-                                               "dolphinsP","atlanticcodP", ))
+                                               "dolphinsP","atlanticcodP" ))
 BioAllomelt$value = as.numeric(as.character(BioAllomelt$value) )
 pBio = ggplot(BioAllomelt, aes(Day, variable, fill= (value))) + 
   geom_tile() +
   scale_fill_gradient(low="white", high="blue") +
-  labs(title = paste0(site,": summary of detections"),  fill = "") +
+  #labs(title = paste0(site,": summary of detections"),  fill = "") +
   xlab("") +
   ylab("")+
   geom_vline(xintercept=as.Date("2019-01-01"), linetype="dashed", 
@@ -384,17 +387,18 @@ pBio = ggplot(BioAllomelt, aes(Day, variable, fill= (value))) +
              color = "gray", size=1)+ 
   geom_vline(xintercept=as.Date("2021-01-01"), linetype="dashed", 
              color = "gray", size=1)+ 
-  theme(legend.position = "none")+
-  theme_minimal()
+  
+  theme_minimal()+
+  theme(legend.position = "none")
 
 #vessels
 VessAllomelt = reshape :: melt(iData, id.vars = "Day", 
-                              measure.vars = c("LOA_ALL_UV","TotalVesselDet_cnt"))
+                              measure.vars = c("LOA_S_UV","LOA_M_UV","LOA_L_UV","TotalVesselDet_cnt"))
 VessAllomelt$value = as.numeric(as.character(VessAllomelt$value) )
 pVes = ggplot(VessAllomelt, aes(Day, variable, fill= (value))) + 
   geom_tile() +
   scale_fill_gradient(low="white", high="blue") +
-  labs(title = paste0(site,": summary of detections"),  fill = "") +
+  #labs(title = paste0(site,": summary of detections"),  fill = "") +
   xlab("") +
   ylab("")+
   geom_vline(xintercept=as.Date("2019-01-01"), linetype="dashed", 
@@ -403,32 +407,209 @@ pVes = ggplot(VessAllomelt, aes(Day, variable, fill= (value))) +
              color = "gray", size=1)+ 
   geom_vline(xintercept=as.Date("2021-01-01"), linetype="dashed", 
              color = "gray", size=1)+ 
-  theme(legend.position = "none")+
-  theme_minimal()
+ 
+  theme_minimal()+
+  theme(legend.position = "none")
 
 #abiotic
-pwind = ggplot(tmp, aes(as.factor(JulianDay), meanWSPD, group=as.factor(Yr), color = as.factor(Yr))) +
-  geom_line() +   geom_point() +
-  xlab("Julian Day")+  ylab("Wind Speed (mps) ") +
+as.data.frame(colnames(iData))
+
+pwind = ggplot(iData, aes((Day), as.numeric(as.character(avgWSPDL))) ) +
+  geom_line()+
+  #geom_errorbar(aes(ymin=avgWSPDL-sdWSPD, ymax=avgWSPDL+sdWSPD), width=.1, alpha = .3)+
+  #stat_summary(geom="ribbon", fun.ymin=avgWSPDL-sdWSPD, fun.ymax=avgWSPDL+sdWSPD, alpha=0.3) 
+  geom_vline(xintercept=as.Date("2019-01-01"), linetype="dashed", 
+             color = "gray", size=1)+ 
+  geom_vline(xintercept=as.Date("2020-01-01"), linetype="dashed", 
+             color = "gray", size=1)+ 
+  geom_vline(xintercept=as.Date("2021-01-01"), linetype="dashed", 
+             color = "gray", size=1) + 
+  xlab("")+  ylab("Daily Wind Speed (mps) ") +
   theme_minimal()+ theme(legend.position = "none")
 
-ptide = ggplot(tmp, aes(as.factor(JulianDay), maxTide, group=as.factor(Yr), color = as.factor(Yr))) +
-  geom_line() +
-  geom_point() +
-  xlab("")+  ylab("Max tide change ") +
-  theme_minimal()+
-  theme(legend.position = "none")
-
+ptide = ggplot(iData, aes((Day), as.numeric(as.character(avgWL))) ) +
+  geom_line()+
+  #geom_errorbar(aes(ymin=avgWL-sdWL, ymax=avgWL+sdWL), width=.1, alpha = .3)+
+  #stat_summary(geom="ribbon", fun.ymin=avgWSPDL-sdWSPD, fun.ymax=avgWSPDL+sdWSPD, alpha=0.3) 
+  geom_vline(xintercept=as.Date("2019-01-01"), linetype="dashed", 
+             color = "gray", size=1)+ 
+  geom_vline(xintercept=as.Date("2020-01-01"), linetype="dashed", 
+             color = "gray", size=1)+ 
+  geom_vline(xintercept=as.Date("2021-01-01"), linetype="dashed", 
+             color = "gray", size=1) + 
+  xlab("")+  ylab("Tidal Change (m) ") +
+  theme_minimal()+ theme(legend.position = "none")
+  
 #sound levels
-p125 = ggplot(tmp, aes(as.factor(JulianDay), OL_250, group=as.factor(Yr), color = as.factor(Yr))) +
+p125 = ggplot(iData, aes((Day), OL_125 ) )+
   geom_line() +
   geom_point() +
-  xlab("")+  ylab("Ol_125 ") +
+  geom_vline(xintercept=as.Date("2019-01-01"), linetype="dashed", 
+             color = "gray", size=1)+ 
+  geom_vline(xintercept=as.Date("2020-01-01"), linetype="dashed", 
+             color = "gray", size=1)+ 
+  geom_vline(xintercept=as.Date("2021-01-01"), linetype="dashed", 
+             color = "gray", size=1) + 
+  xlab("")+  ylab("Median Sound Pressure Level dB re 1u Pa \n 125 Hz octave band") +
   theme_minimal()+
   theme(legend.position = "none")
 
+pBio
+pVes
+pwind
+p125
+#copy into illustrator to make pretty
 
+### LINE PLOT OF Proportion of sources present each day
+#-----------------------------------------------------------------------------------------
+iData$dolphinsP=as.numeric(as.character(iData$dolphinsP))
+iData$bluewhaleP=as.numeric(as.character(iData$bluewhaleP))
+iData$finwhaleP=as.numeric(as.character(iData$finwhaleP))
+iData$humpbackwhaleP=as.numeric(as.character(iData$humpbackwhaleP))
+iData$northatlanticrightwhaleP=as.numeric(as.character(iData$northatlanticrightwhaleP))
+iData$seiwhaleP=as.numeric(as.character(iData$seiwhaleP))
 
+iData$BioP = (iData$atlanticcodP + iData$dolphinsP + iData$bluewhaleP +iData$finwhaleP + iData$humpbackwhaleP + iData$northatlanticrightwhaleP + iData$seiwhaleP)/ 7
+iData$PercentVessel_dailyP = iData$PercentVessel_daily/100
+
+Propmelt = reshape :: melt(iData, id.vars = "Day", 
+                              measure.vars = c("PercentVessel_dailyP","BioP","TimeAbove" ))
+#overlapping line graph--- hard to see
+#-----------------------------------------------------------------------------------------
+ggplot(Propmelt, aes(Day, value, color= (variable))) + 
+  geom_line(size = 2, alpha = .5)+
+  theme_minimal()
+
+#some date formatting
+#-----------------------------------------------------------------------------------------
+iData$Yr = year(iData$Day)
+iData$jDay = yday(iData$Day)
+iData$Month = month(iData$Day)
+for (mm in 1:nrow(iData)){
+  iData$MthLab[mm] = as.character( mthLab[mthLab$V1== iData$Month[mm],2])
+}
+iData$MthLab = factor( iData$MthLab, ordered = TRUE, 
+                          levels = c("Jan","Feb","Mar",
+                                     "Apr","May","Jun",
+                                     "Jul","Aug","Sep",
+                                     "Oct","Nov","Dec"))
+Sys.Date()
+write.csv(iData, file = paste0(outDir,site, "_CombineData_DAY_ver", Sys.Date(), ".csv") )
+save(iData, file = paste0(outDir,site, "_CombineData_DAY_ver", Sys.Date()) )
+Propmelt$yr = year(Propmelt$Day)
+Propmelt$Jday = yday(Propmelt$Day)
+Propmelt$Month = month(Propmelt$Day)
+mthLab = as.data.frame (rbind( c(1,"Jan"), c(2,"Feb"), c(3,"Mar"), c(4,"Apr"), c(5,"May"), c(6,"Jun"), c(7,"Jul"), c(8,"Aug"), c(9,"Sep"), c(10,"Oct"), c(11,"Nov"), c(12,"Dec") ))
+for (mm in 1:nrow(Propmelt)){
+  Propmelt$MthLab[mm] = as.character( mthLab[mthLab$V1== Propmelt$Month[mm],2])
+}
+Propmelt$MthLab = factor( Propmelt$MthLab, ordered = TRUE, 
+       levels = c("Jan","Feb","Mar",
+                  "Apr","May","Jun",
+                  "Jul","Aug","Sep",
+                  "Oct","Nov","Dec"))
+# 3 panel line graphs--- not ideas
+#-----------------------------------------------------------------------------------------
+pB = ggplot(iData, aes(Day, BioP)) + 
+  geom_line(size = 2, alpha = .5, color = 'blue')+
+  ylab("Proportion of Biological Sources Present")+ xlab("") +
+  theme_minimal()
+pV = ggplot(iData, aes(Day, PercentVessel_dailyP)) + 
+  geom_line(size = 2, alpha = .5, color = 'red')+
+  ylab("Proportion of Day Vessels Dominant")+ xlab("") +
+  theme_minimal()
+pW = ggplot(iData, aes(Day, TimeAbove)) + 
+  ylab("Proportion of Day Wind above 10 m/s")+ xlab("") +
+  geom_line(size = 2, alpha = .5, color = 'grey')+
+  theme_minimal()
+grid.arrange(pB,pV,pW)
+
+#polar plot-- Daily (too much!)
+#-----------------------------------------------------------------------------------------
+Propmelt20 = Propmelt[Propmelt$yr == "2020",]
+plot <- ggplot(Propmelt20, aes( x = Jday, y = value, fill = factor(variable))) +
+  geom_bar(stat="identity")  
+plot = plot + coord_polar()
+plot
+
+#polar plot-- monthly-- 2020 and 2019
+#-----------------------------------------------------------------------------------------
+rbind(Propmelt20, c(as.Date("2020-12-01", format = "%Y-%m-%d"), NA,NA,NA,NA,NA,NA))
+
+Propmelt20m = aggregate( Propmelt20$value, by=list(Propmelt20$MthLab, Propmelt20$variable), mean, na.rm=T) 
+tmp = aggregate( Propmelt20$value, by=list(Propmelt20$MthLab, Propmelt20$variable), sd, na.rm=T) 
+Propmelt20m$sd = tmp$x
+Propmelt20m = rbind(Propmelt20m, c("Dec", "TimeAbove",0,0) )
+Propmelt20m = rbind(Propmelt20m, c("Dec", "BioP",0,0) )
+Propmelt20m = rbind(Propmelt20m, c("Dec", "PercentVessel_dailyP",0,0) )
+Propmelt20m$x = as.numeric( Propmelt20m$x)
+Propmelt20m$sd = as.numeric( Propmelt20m$sd)
+plot = ggplot(Propmelt20m, aes( x = as.factor(Group.1), y = x, fill = factor(Group.2))) +
+  geom_bar(stat="identity"  )+
+  labs(x = "Month", y = "", fill = "Soundscape Component") +
+  scale_fill_manual(values=c( "#E69F00",  "#56B4E9", "gray", "darkblue"), labels = c("Vessel", "Biological", "Wind")) 
+p20 = plot + coord_polar() +
+  labs(  x = "",y = "", title = "Monthley Average Soundscape Components",
+    caption = "orange = proportion day vessel dominant\n blue = proportion of Biological sources present\n gray = proportion of day wind above 10 m/s", 
+    subtitle = "Stellwagen Bank National Marine Sanctuary-02 (2020)") +
+  theme_minimal()
+
+#polar plot-- monthly-- 2019
+#-----------------------------------------------------------------------------------------
+Propmelt19 = Propmelt[Propmelt$yr == "2019",]
+Propmelt19m = aggregate( Propmelt19$value,    by=list(Propmelt19$MthLab,Propmelt19$variable), mean, na.rm=T)
+tmp = aggregate( Propmelt19$value, by=list(Propmelt19$MthLab, Propmelt19$variable), sd, na.rm=T) 
+Propmelt19m$sd = tmp$x
+
+plot = ggplot(Propmelt19m,
+               aes( x = as.factor(Group.1), y = x, fill = factor(Group.2))) +
+  geom_bar(stat="identity"  ) +
+  labs(x = "Month", y = "", fill = "Soundscape Component") +
+  scale_fill_manual(values=c( "#E69F00",
+                              "#56B4E9",
+                              "gray",
+                              "darkblue"), labels = c("Vessel", "Biological", "Wind")) 
+p19 = plot + coord_polar() +
+  labs(  x = "",y = "", title = "Monthley Average Soundscape Components",
+         caption = "orange = proportion day vessel dominant\n blue = proportion of Biological sources present\n gray = proportion of day wind above 10 m/s", 
+         subtitle = "Stellwagen Bank National Marine Sanctuary-02 (2020)") +
+  theme_minimal()
+
+grid.arrange(p19,p20) #not bad... but y-axis is meaning less
+
+#another view...separate bars (with error bars)-- looks good
+#-----------------------------------------------------------------------------------------
+p19 = ggplot(data=Propmelt19m,aes( x = as.factor(Group.1), y = x, fill = factor(Group.2))) +
+  geom_bar(stat="identity", color="black", position=position_dodge(), width=0.65, size=0.3)+
+  geom_errorbar(aes(ymin=x, ymax=x+sd), position=position_dodge(.5), width=.2) +
+  coord_polar(theta = "x",start=0) +
+  ylim(c(0,1.1)) + 
+  scale_fill_brewer(palette="YlGnBu",labels = c("Vessel", "Biological", "Wind"),name = "")+
+  labs( x = "", y = "",
+    title = "",
+    caption = "Vessel = proportion day vessel dominant\n Biological = proportion of biological sources present\n Wind = proportion of day wind above 10 m/s", 
+    subtitle = "Stellwagen Bank National Marine Sanctuary-02 \n 2019") +
+  theme_light()+
+  theme( legend.position = "none",axis.text.y = element_text(size = 12,colour="black"),
+         axis.text.x=element_text(size = 10,colour="black"))
+p20 = ggplot(data=Propmelt20m,aes( x = as.factor(Group.1), y = x, fill = factor(Group.2))) +
+  geom_bar(stat="identity", color="black", position=position_dodge(),width=0.65,size=0.3)+
+  geom_errorbar(aes(ymin=x, ymax=x+sd), position=position_dodge(.5), width=.2) +
+  coord_polar(theta = "x",start=0) +
+  ylim(c(0,1)) + 
+  scale_fill_brewer(palette="YlGnBu",labels = c("Vessel", "Biological", "Wind"),name = "")+
+  labs(
+    x = "",
+    y = "",
+    title = "",
+    caption = "Vessel = proportion day vessel dominant\n Biological = proportion of biological sources present\n Wind = proportion of day wind above 10 m/s", 
+    subtitle = "Stellwagen Bank National Marine Sanctuary-02 \n 2020") +
+  theme_light()+
+  theme(  axis.text.y = element_text(size = 12,colour="black"),
+         axis.text.x=element_text(size = 10,colour="black"))
+
+grid.arrange(p19,p20, nrow = 1)
+#save and make pretty in illustrator
 
 
 #previous version for combining data.... not relevent to this version!!

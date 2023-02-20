@@ -45,7 +45,7 @@ library(plotly)  #https://www.r-graph-gallery.com/interactive-charts.html
 ra = 7 #days for running average
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 stdize = function(x, ...) {(x - min(x, ...)) / (max(x, ...) - min(x, ...))}
-yearflag = 2019
+yearflag = 2020
 #-----------------------------------------------------------------------------------------
 # OUTPUT details
 #-----------------------------------------------------------------------------------------
